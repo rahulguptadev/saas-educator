@@ -60,7 +60,17 @@ const TeacherDashboard = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await classService.createClass(formData);
+      // Convert datetime-local string to ISO string
+      // datetime-local format: "YYYY-MM-DDTHH:mm" (local time, no timezone)
+      // new Date() interprets it as local time, toISOString() converts to UTC
+      const classData = {
+        ...formData,
+        scheduledTime: formData.scheduledTime 
+          ? new Date(formData.scheduledTime).toISOString()
+          : formData.scheduledTime
+      };
+
+      await classService.createClass(classData);
       setShowModal(false);
       setFormData({
         title: '',
