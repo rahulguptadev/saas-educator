@@ -99,6 +99,21 @@ jitsi/
 - `PUT /api/admin/users/:id/status` - Toggle user status
 - `DELETE /api/admin/users/:id` - Delete user
 
+## Deployment
+
+For detailed deployment instructions, see:
+- **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - Quick 5-step guide
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Comprehensive deployment guide
+- **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** - Pre/post deployment checklist
+
+### Quick Deploy (Free)
+
+1. **Backend**: Deploy to [Render.com](https://render.com) (free tier)
+2. **Frontend**: Deploy to [Vercel](https://vercel.com) (free tier)
+3. **Database**: Use [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (free tier)
+
+**Total Cost: $0/month** 🎉
+
 ## License
 
 MIT

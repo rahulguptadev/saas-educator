@@ -1,10 +1,13 @@
 node_modules/
 .env
 .env.local
+.env.production
 .DS_Store
 dist/
 build/
 *.log
 .vscode/
 .idea/
-
+backend/.env
+frontend/.env
+frontend/build
