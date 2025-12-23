@@ -38,6 +38,54 @@ router.get('/teachers', protect, authorize('admin'), async (req, res) => {
   }
 });
 
+// @route   GET /api/users/available
+// @desc    Get all users available for chatting (role-based)
+// @access  Private
+router.get('/available', protect, async (req, res) => {
+  try {
+    let users;
+
+    if (req.user.role === 'admin') {
+      // Admins can see all users
+      users = await User.find({ _id: { $ne: req.user._id }, isActive: true })
+        .select('name email avatar role');
+    } else if (req.user.role === 'teacher') {
+      // Teachers can see students and other teachers
+      // Get all users first, then filter out email for students
+      const allUsers = await User.find({
+        _id: { $ne: req.user._id },
+        isActive: true,
+        role: { $in: ['student', 'teacher'] }
+      })
+        .select('name avatar role email phone');
+      
+      // Hide email and phone from students for teachers
+      users = allUsers.map(u => {
+        const userObj = u.toObject();
+        if (userObj.role === 'student') {
+          delete userObj.email;
+          delete userObj.phone;
+        }
+        return userObj;
+      });
+    } else if (req.user.role === 'student') {
+      // Students can see teachers and other students
+      users = await User.find({
+        _id: { $ne: req.user._id },
+        isActive: true,
+        role: { $in: ['student', 'teacher'] }
+      })
+        .select('name avatar role');
+    } else {
+      users = [];
+    }
+
+    res.json({ users });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // @route   GET /api/users/:id
 // @desc    Get user by ID (with role-based data filtering)
 // @access  Private

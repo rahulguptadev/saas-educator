@@ -17,6 +17,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/classes', require('./routes/classes'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/chats', require('./routes/chats'));
 
 // Health check
 app.get('/api/health', (req, res) => {

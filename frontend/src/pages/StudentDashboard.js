@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import ChatWidget from '../components/ChatWidget';
 import { classService } from '../services/classService';
 import { FiVideo, FiCalendar, FiUser } from 'react-icons/fi';
 import { format } from 'date-fns';
@@ -75,8 +76,11 @@ const StudentDashboard = () => {
       <div className="dashboard">
         <h1 className="dashboard-title">My Classes</h1>
 
-        {/* Active Classes */}
-        <div className="card">
+        {/* Dashboard Grid */}
+        <div className="dashboard-grid">
+          <div className="dashboard-main">
+            {/* Active Classes */}
+            <div className="card">
           <div className="card-header">
             <h2 className="card-title">
               <FiCalendar /> Active Classes ({upcomingClasses.length})
@@ -145,6 +149,13 @@ const StudentDashboard = () => {
                 </div>
               ))
             )}
+          </div>
+        </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="dashboard-sidebar">
+            <ChatWidget limit={5} />
           </div>
         </div>
       </div>

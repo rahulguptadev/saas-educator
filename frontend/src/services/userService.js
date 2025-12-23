@@ -11,6 +11,11 @@ export const userService = {
     return response.data;
   },
 
+  getAvailableUsers: async () => {
+    const response = await api.get('/users/available');
+    return response.data;
+  },
+
   getUser: async (id) => {
     const response = await api.get(`/users/${id}`);
     return response.data;

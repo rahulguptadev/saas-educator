@@ -3,7 +3,7 @@ import Layout from '../components/Layout';
 import { adminService } from '../services/adminService';
 import { userService } from '../services/userService';
 import { classService } from '../services/classService';
-import { FiUsers, FiBook, FiCalendar, FiTrendingUp, FiPlus, FiVideo } from 'react-icons/fi';
+import { FiUsers, FiBook, FiCalendar, FiTrendingUp, FiPlus, FiVideo, FiMessageCircle } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
@@ -110,7 +110,15 @@ const AdminDashboard = () => {
   return (
     <Layout>
       <div className="dashboard">
-        <h1 className="dashboard-title">Admin Dashboard</h1>
+        <div className="dashboard-header">
+          <h1 className="dashboard-title">Admin Dashboard</h1>
+          <button
+            className="btn btn-primary"
+            onClick={() => navigate('/admin/chats')}
+          >
+            <FiMessageCircle /> View All Chats
+          </button>
+        </div>
 
         {/* Stats Cards */}
         <div className="stats-grid">

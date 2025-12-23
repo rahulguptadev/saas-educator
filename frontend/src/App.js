@@ -9,6 +9,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import TeacherDashboard from './pages/TeacherDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import ClassRoom from './pages/ClassRoom';
+import ChatPage from './pages/ChatPage';
+import AdminChatOverview from './pages/AdminChatOverview';
 import './App.css';
 
 function App() {
@@ -48,6 +50,22 @@ function App() {
               <PrivateRoute>
                 <ClassRoom />
               </PrivateRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <PrivateRoute>
+                <ChatPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/admin/chats"
+            element={
+              <RoleRoute allowedRoles={['admin']}>
+                <AdminChatOverview />
+              </RoleRoute>
             }
           />
           <Route path="/" element={<Navigate to="/login" replace />} />
