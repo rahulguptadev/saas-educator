@@ -32,7 +32,7 @@ const Layout = ({ children }) => {
       <nav className="navbar">
         <div className="navbar-content">
           <div className="navbar-brand" onClick={() => navigate(getDashboardPath())}>
-            <h2>🎓 Jitsi Classroom</h2>
+            <h2>🎓 Anita Scholar Academy </h2>
           </div>
           <div className="navbar-menu">
             <button 

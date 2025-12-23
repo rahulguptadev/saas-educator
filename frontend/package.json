@@ -1,7 +1,7 @@
 {
   "name": "jitsi-frontend",
   "version": "1.0.0",
-  "description": "Frontend for Jitsi Classroom Platform",
+  "description": "Frontend for Anita Scholar Academy Platform",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -1,7 +1,7 @@
 {
   "name": "jitsi-backend",
   "version": "1.0.0",
-  "description": "Backend API for Jitsi Classroom Platform",
+  "description": "Backend API for Anita Scholar Academy Platform",
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
