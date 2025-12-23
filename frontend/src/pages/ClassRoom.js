@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { AuthContext } from '../context/AuthContext';
 import { classService } from '../services/classService';
 import { FiArrowLeft, FiVideo, FiVideoOff, FiPhone, FiPhoneOff, FiMic, FiMicOff } from 'react-icons/fi';
 import './ClassRoom.css';
@@ -8,6 +9,7 @@ import './ClassRoom.css';
 const ClassRoom = () => {
   const { classId } = useParams();
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [classData, setClassData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [api, setApi] = useState(null);
@@ -82,7 +84,10 @@ const ClassRoom = () => {
         jitsiInitialized.current = true;
         
         const domain = 'meet.jit.si';
-        const user = localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null;
+        const currentUser = user || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null);
+        
+        // Set moderator permissions for admins and teachers
+        const isModerator = currentUser?.role === 'admin' || currentUser?.role === 'teacher';
         
         const options = {
           roomName: classInfo.jitsiRoomName,
@@ -97,6 +102,11 @@ const ClassRoom = () => {
             prejoinPageEnabled: false, // Skip the join page
             disableDeepLinking: true,
             enableInsecureRoomNameWarning: false,
+            // Set moderator for admins and teachers
+            ...(isModerator && {
+              startAudioOnly: false,
+              enableLayerSuspension: true,
+            }),
           },
           interfaceConfigOverwrite: {
             TOOLBAR_BUTTONS: [
@@ -112,8 +122,8 @@ const ClassRoom = () => {
             DISABLE_PRESENCE_STATUS: false,
           },
           userInfo: {
-            displayName: user?.name || 'User',
-            email: user?.email || '',
+            displayName: currentUser?.name || 'User',
+            email: currentUser?.email || '',
           },
         };
 
@@ -123,6 +133,14 @@ const ClassRoom = () => {
 
           jitsiApi.addEventListener('videoConferenceJoined', () => {
             console.log('Joined conference');
+            // Set moderator role for admins and teachers
+            if (isModerator) {
+              try {
+                jitsiApi.executeCommand('toggleLobby', false);
+              } catch (error) {
+                console.log('Moderator setup:', error);
+              }
+            }
           });
 
           jitsiApi.addEventListener('readyToClose', () => {

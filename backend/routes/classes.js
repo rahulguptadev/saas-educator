@@ -101,13 +101,15 @@ router.get('/:id', protect, async (req, res) => {
       return res.status(404).json({ message: 'Class not found' });
     }
 
-    // Check access
-    if (req.user.role === 'student' && !classItem.students.some(s => s._id.toString() === req.user._id.toString())) {
-      return res.status(403).json({ message: 'Access denied' });
-    }
+    // Check access (admins can access any class)
+    if (req.user.role !== 'admin') {
+      if (req.user.role === 'student' && !classItem.students.some(s => s._id.toString() === req.user._id.toString())) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
 
-    if (req.user.role === 'teacher' && classItem.teacher._id.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ message: 'Access denied' });
+      if (req.user.role === 'teacher' && classItem.teacher._id.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
     }
 
     res.json({ class: classItem });

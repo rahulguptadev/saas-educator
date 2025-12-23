@@ -3,10 +3,12 @@ import Layout from '../components/Layout';
 import { adminService } from '../services/adminService';
 import { userService } from '../services/userService';
 import { classService } from '../services/classService';
-import { FiUsers, FiBook, FiCalendar, FiTrendingUp, FiPlus } from 'react-icons/fi';
+import { FiUsers, FiBook, FiCalendar, FiTrendingUp, FiPlus, FiVideo } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import './Dashboard.css';
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
@@ -91,6 +93,10 @@ const AdminDashboard = () => {
       [e.target.name]: e.target.value
     });
     setCreateError('');
+  };
+
+  const handleJoinClass = (classId) => {
+    navigate(`/classroom/${classId}`);
   };
 
   if (loading) {
@@ -253,21 +259,36 @@ const AdminDashboard = () => {
             <h2 className="card-title">All Classes</h2>
           </div>
           <div className="classes-grid">
-            {classes.map((classItem) => (
-              <div key={classItem._id} className="class-card">
-                <h3>{classItem.title}</h3>
-                <p className="class-teacher">Teacher: {classItem.teacher?.name}</p>
-                <p className="class-time">
-                  {new Date(classItem.scheduledTime).toLocaleString()}
-                </p>
-                <p className="class-students">
-                  {classItem.students?.length || 0} students
-                </p>
-                <span className={`badge badge-${classItem.status}`}>
-                  {classItem.status}
-                </span>
-              </div>
-            ))}
+            {classes.length === 0 ? (
+              <p className="empty-state">No classes found</p>
+            ) : (
+              classes.map((classItem) => (
+                <div key={classItem._id} className="class-card">
+                  <h3>{classItem.title}</h3>
+                  {classItem.description && (
+                    <p className="class-description">{classItem.description}</p>
+                  )}
+                  <p className="class-teacher">Teacher: {classItem.teacher?.name}</p>
+                  <p className="class-time">
+                    {new Date(classItem.scheduledTime).toLocaleString()}
+                  </p>
+                  <p className="class-students">
+                    {classItem.students?.length || 0} students
+                  </p>
+                  <span className={`badge badge-${classItem.status}`}>
+                    {classItem.status}
+                  </span>
+                  <div className="class-actions" style={{ marginTop: '12px' }}>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => handleJoinClass(classItem._id)}
+                    >
+                      <FiVideo /> Join Class
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
