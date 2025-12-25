@@ -57,6 +57,17 @@
   border-radius: var(--radius);
   font-weight: 500;
   font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.navbar-user.clickable {
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.navbar-user.clickable:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .navbar-user svg {
@@ -149,6 +160,10 @@
   .btn-nav,
   .btn-logout {
     padding: 8px 12px;
+  }
+  
+  .navbar-user span:not(.role-badge) {
+    display: none;
   }
   
   .main-content {

@@ -44,14 +44,18 @@ const Layout = ({ children }) => {
               Messages
             </button>
             <NotificationPanel />
-            <div className="navbar-user">
+            <div 
+              className="navbar-user clickable" 
+              onClick={() => navigate('/profile')} 
+              title="View Profile"
+            >
               <FiUser />
               <span>{user?.name}</span>
               <span className="role-badge">{user?.role}</span>
             </div>
             <button className="btn-logout" onClick={handleLogout}>
               <FiLogOut />
-              Logout
+              <span>Logout</span>
             </button>
           </div>
         </div>

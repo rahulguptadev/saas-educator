@@ -20,5 +20,24 @@ export const userService = {
     const response = await api.get(`/users/${id}`);
     return response.data;
   },
+
+  // Profile methods
+  getProfile: async () => {
+    const response = await api.get('/users/profile');
+    return response.data;
+  },
+
+  updateProfile: async (profileData) => {
+    const response = await api.put('/users/profile', profileData);
+    return response.data;
+  },
+
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await api.put('/users/change-password', {
+      currentPassword,
+      newPassword
+    });
+    return response.data;
+  }
 };
 

@@ -11,6 +11,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import ClassRoom from './pages/ClassRoom';
 import ChatPage from './pages/ChatPage';
 import AdminChatOverview from './pages/AdminChatOverview';
+import ProfilePage from './pages/ProfilePage';
 import './App.css';
 
 function App() {
@@ -66,6 +67,14 @@ function App() {
               <RoleRoute allowedRoles={['admin']}>
                 <AdminChatOverview />
               </RoleRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <ProfilePage />
+              </PrivateRoute>
             }
           />
           <Route path="/" element={<Navigate to="/login" replace />} />
