@@ -65,7 +65,6 @@ router.put('/users/:id/status', async (req, res) => {
 router.post('/users', [
   body('name').trim().notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Please provide a valid email'),
-  body('phone').trim().notEmpty().withMessage('Phone number is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('role').isIn(['teacher', 'student']).withMessage('Role must be teacher or student')
 ], async (req, res) => {
@@ -75,7 +74,13 @@ router.post('/users', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, email, phone, password, role } = req.body;
+    const { 
+      name, email, phone, password, role,
+      // Student fields
+      grade, school, fatherName, fatherContact, motherName, motherContact, enrolledSubjects,
+      // Teacher fields
+      specialization, qualification
+    } = req.body;
 
     // Check if user already exists
     const userExists = await User.findOne({ email });
@@ -83,16 +88,37 @@ router.post('/users', [
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
-    // Create user
-    const user = await User.create({
+    // Build user data
+    const userData = {
       name,
       email,
-      phone,
+      phone: phone || '',
       password,
       role,
-      isActive: true // New users are active by default
-    });
+      isActive: true
+    };
 
+    // Add student-specific fields
+    if (role === 'student') {
+      if (grade) userData.grade = grade;
+      if (school) userData.school = school;
+      if (fatherName) userData.fatherName = fatherName;
+      if (fatherContact) userData.fatherContact = fatherContact;
+      if (motherName) userData.motherName = motherName;
+      if (motherContact) userData.motherContact = motherContact;
+      if (enrolledSubjects && enrolledSubjects.length > 0) {
+        userData.enrolledSubjects = enrolledSubjects;
+      }
+    }
+
+    // Add teacher-specific fields
+    if (role === 'teacher') {
+      if (specialization) userData.specialization = specialization;
+      if (qualification) userData.qualification = qualification;
+    }
+
+    // Create user
+    const user = await User.create(userData);
     const userResponse = user.toJSON();
 
     res.status(201).json({ 

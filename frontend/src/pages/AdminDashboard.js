@@ -53,10 +53,31 @@ const AdminDashboard = () => {
     email: '',
     phone: '',
     password: '',
-    role: 'teacher'
+    role: 'teacher',
+    // Student fields
+    grade: '',
+    school: '',
+    fatherName: '',
+    fatherContact: '',
+    motherName: '',
+    motherContact: '',
+    enrolledSubjects: [],
+    // Teacher fields
+    specialization: '',
+    qualification: ''
   });
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
+  
+  // Grade and Subject options
+  const gradeOptions = [
+    '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th',
+    '1st (Other)', '2nd (Other)', '3rd (Other)', '4th (Other)', '5th (Other)'
+  ];
+  const subjectOptions = [
+    'Maths', 'Science', 'English', 'Hindi', 'Social Studies', 'Physics', 
+    'Chemistry', 'Biology', 'Computer Science', 'Economics', 'Accountancy'
+  ];
 
   useEffect(() => {
     loadData();
@@ -94,7 +115,9 @@ const AdminDashboard = () => {
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-                          (student.email && student.email.toLowerCase().includes(studentSearch.toLowerCase()));
+                          (student.email && student.email.toLowerCase().includes(studentSearch.toLowerCase())) ||
+                          (student.grade && student.grade.toLowerCase().includes(studentSearch.toLowerCase())) ||
+                          (student.school && student.school.toLowerCase().includes(studentSearch.toLowerCase()));
     const matchesFilter = studentFilter === 'all' || 
                           (studentFilter === 'active' && student.isActive) ||
                           (studentFilter === 'inactive' && !student.isActive);
@@ -112,10 +135,15 @@ const AdminDashboard = () => {
   const exportToCSV = (data, filename, type) => {
     let csvContent = '';
     
-    if (type === 'teachers' || type === 'students') {
-      csvContent = 'Name,Email,Phone,Status\n';
+    if (type === 'teachers') {
+      csvContent = 'Name,Email,Phone,Specialization,Qualification,Status\n';
       data.forEach(user => {
-        csvContent += `"${user.name}","${user.email || ''}","${user.phone || ''}","${user.isActive ? 'Active' : 'Inactive'}"\n`;
+        csvContent += `"${user.name}","${user.email || ''}","${user.phone || ''}","${user.specialization || ''}","${user.qualification || ''}","${user.isActive ? 'Active' : 'Inactive'}"\n`;
+      });
+    } else if (type === 'students') {
+      csvContent = 'Name,Email,Phone,Grade,School,Father Name,Father Contact,Mother Name,Mother Contact,Status\n';
+      data.forEach(user => {
+        csvContent += `"${user.name}","${user.email || ''}","${user.phone || ''}","${user.grade || ''}","${user.school || ''}","${user.fatherName || ''}","${user.fatherContact || ''}","${user.motherName || ''}","${user.motherContact || ''}","${user.isActive ? 'Active' : 'Inactive'}"\n`;
       });
     } else if (type === 'classes') {
       csvContent = 'Title,Teacher,Scheduled Time,Duration,Students,Status\n';
@@ -146,7 +174,7 @@ const AdminDashboard = () => {
 
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, '').toLowerCase());
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, '').toLowerCase().replace(/\s+/g, ''));
     const data = [];
     const errors = [];
     
@@ -159,7 +187,7 @@ const AdminDashboard = () => {
         row[headers[idx]] = val.replace(/"/g, '').trim();
       });
       
-      if (importType === 'teachers' || importType === 'students') {
+      if (importType === 'teachers') {
         if (!row.name || !row.email) {
           errors.push(`Row ${i}: Missing required fields (name, email)`);
         } else {
@@ -168,7 +196,27 @@ const AdminDashboard = () => {
             email: row.email,
             phone: row.phone || '',
             password: row.password || 'password123',
-            role: importType === 'teachers' ? 'teacher' : 'student'
+            role: 'teacher',
+            specialization: row.specialization || '',
+            qualification: row.qualification || ''
+          });
+        }
+      } else if (importType === 'students') {
+        if (!row.name || !row.email) {
+          errors.push(`Row ${i}: Missing required fields (name, email)`);
+        } else {
+          data.push({
+            name: row.name,
+            email: row.email,
+            phone: row.phone || '',
+            password: row.password || 'password123',
+            role: 'student',
+            grade: row.grade || '',
+            school: row.school || '',
+            fatherName: row.fathername || '',
+            fatherContact: row.fathercontact || '',
+            motherName: row.mothername || '',
+            motherContact: row.mothercontact || ''
           });
         }
       }
@@ -224,20 +272,51 @@ const AdminDashboard = () => {
       };
       await adminService.createUser(userData);
       setShowCreateModal(false);
-      setCreateFormData({
-        name: '',
-        email: '',
-        phone: '',
-        password: '',
-        role: 'teacher'
-      });
-      setCreateUserRole('teacher');
+      resetCreateForm();
       await loadData();
     } catch (error) {
       setCreateError(error.response?.data?.message || 'Failed to create user');
     } finally {
       setCreateLoading(false);
     }
+  };
+
+  const resetCreateForm = () => {
+    setCreateFormData({
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      role: 'teacher',
+      grade: '',
+      school: '',
+      fatherName: '',
+      fatherContact: '',
+      motherName: '',
+      motherContact: '',
+      enrolledSubjects: [],
+      specialization: '',
+      qualification: ''
+    });
+    setCreateUserRole('teacher');
+  };
+
+  const addSubjectToCreate = () => {
+    setCreateFormData({
+      ...createFormData,
+      enrolledSubjects: [...createFormData.enrolledSubjects, { subject: '', classes: 0, fees: 0 }]
+    });
+  };
+
+  const removeSubjectFromCreate = (index) => {
+    const updated = createFormData.enrolledSubjects.filter((_, i) => i !== index);
+    setCreateFormData({ ...createFormData, enrolledSubjects: updated });
+  };
+
+  const handleSubjectFieldChange = (index, field, value) => {
+    const updated = [...createFormData.enrolledSubjects];
+    updated[index] = { ...updated[index], [field]: value };
+    setCreateFormData({ ...createFormData, enrolledSubjects: updated });
   };
 
   const handleCreateFormChange = (e) => {
@@ -529,6 +608,8 @@ const AdminDashboard = () => {
                       <tr>
                         <th>Name</th>
                         <th>Email</th>
+                        <th>Grade</th>
+                        <th>School</th>
                         <th>Phone</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -537,7 +618,7 @@ const AdminDashboard = () => {
                     <tbody>
                       {filteredStudents.length === 0 ? (
                         <tr>
-                          <td colSpan="5" className="empty-table">
+                          <td colSpan="7" className="empty-table">
                             <FiUsers className="empty-icon" />
                             <p>No students found</p>
                           </td>
@@ -547,6 +628,8 @@ const AdminDashboard = () => {
                           <tr key={student._id}>
                             <td className="td-name">{student.name}</td>
                             <td>{student.email || '-'}</td>
+                            <td>{student.grade || '-'}</td>
+                            <td>{student.school || '-'}</td>
                             <td>{student.phone || '-'}</td>
                             <td>
                               <span className={`badge ${student.isActive ? 'badge-ongoing' : 'badge-cancelled'}`}>
@@ -666,68 +749,251 @@ const AdminDashboard = () => {
         {/* Create User Modal */}
         {showCreateModal && (
           <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Create New {createUserRole === 'teacher' ? 'Teacher' : 'Student'}</h2>
                 <button className="modal-close" onClick={() => setShowCreateModal(false)}>×</button>
               </div>
               
               <form onSubmit={handleCreateUser}>
-                <div className="modal-body">
+                <div className="modal-body modal-body-scroll">
                   {createError && <div className="alert alert-error">{createError}</div>}
 
-                  <div className="form-group">
-                    <label className="form-label">Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-input"
-                      placeholder="Enter full name"
-                      value={createFormData.name}
-                      onChange={handleCreateFormChange}
-                      required
-                    />
+                  {/* Basic Information Section */}
+                  <div className="form-section">
+                    <h3 className="form-section-title">
+                      {createUserRole === 'student' ? 'Student Information' : 'Teacher Information'}
+                    </h3>
+                    
+                    <div className="form-group">
+                      <label className="form-label">Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-input"
+                        placeholder="Enter full name"
+                        value={createFormData.name}
+                        onChange={handleCreateFormChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        className="form-input"
+                        placeholder="Enter email address"
+                        value={createFormData.email}
+                        onChange={handleCreateFormChange}
+                        required
+                      />
+                    </div>
+
+                    {createUserRole === 'student' && (
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Grade</label>
+                          <select
+                            name="grade"
+                            className="form-input"
+                            value={createFormData.grade}
+                            onChange={handleCreateFormChange}
+                          >
+                            <option value="">Select Grade</option>
+                            {gradeOptions.map(g => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">School</label>
+                          <input
+                            type="text"
+                            name="school"
+                            className="form-input"
+                            placeholder="School name"
+                            value={createFormData.school}
+                            onChange={handleCreateFormChange}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {createUserRole === 'teacher' && (
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Specialization</label>
+                          <input
+                            type="text"
+                            name="specialization"
+                            className="form-input"
+                            placeholder="e.g. Mathematics, Science"
+                            value={createFormData.specialization}
+                            onChange={handleCreateFormChange}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Qualification</label>
+                          <input
+                            type="text"
+                            name="qualification"
+                            className="form-input"
+                            placeholder="e.g. M.Sc, B.Ed"
+                            value={createFormData.qualification}
+                            onChange={handleCreateFormChange}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="form-group">
+                      <label className="form-label">Mobile Number</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        className="form-input"
+                        placeholder="+1(480)5696714"
+                        value={createFormData.phone}
+                        onChange={handleCreateFormChange}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Password</label>
+                      <input
+                        type="password"
+                        name="password"
+                        className="form-input"
+                        value={createFormData.password}
+                        onChange={handleCreateFormChange}
+                        required
+                        minLength={6}
+                        placeholder="Minimum 6 characters"
+                      />
+                    </div>
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      className="form-input"
-                      placeholder="Enter email address"
-                      value={createFormData.email}
-                      onChange={handleCreateFormChange}
-                      required
-                    />
-                  </div>
+                  {/* Parent Information (Students only) */}
+                  {createUserRole === 'student' && (
+                    <div className="form-section">
+                      <h3 className="form-section-title">Parent Information</h3>
+                      
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Father's Name</label>
+                          <input
+                            type="text"
+                            name="fatherName"
+                            className="form-input"
+                            placeholder="Father's full name"
+                            value={createFormData.fatherName}
+                            onChange={handleCreateFormChange}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Father's Contact</label>
+                          <input
+                            type="tel"
+                            name="fatherContact"
+                            className="form-input"
+                            placeholder="+1(480)569-6714"
+                            value={createFormData.fatherContact}
+                            onChange={handleCreateFormChange}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Phone</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      className="form-input"
-                      placeholder="Enter phone number"
-                      value={createFormData.phone}
-                      onChange={handleCreateFormChange}
-                      required
-                    />
-                  </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Mother's Name</label>
+                          <input
+                            type="text"
+                            name="motherName"
+                            className="form-input"
+                            placeholder="Mother's full name"
+                            value={createFormData.motherName}
+                            onChange={handleCreateFormChange}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Mother's Contact</label>
+                          <input
+                            type="tel"
+                            name="motherContact"
+                            className="form-input"
+                            placeholder="+1234567890"
+                            value={createFormData.motherContact}
+                            onChange={handleCreateFormChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="form-group">
-                    <label className="form-label">Password</label>
-                    <input
-                      type="password"
-                      name="password"
-                      className="form-input"
-                      value={createFormData.password}
-                      onChange={handleCreateFormChange}
-                      required
-                      minLength={6}
-                      placeholder="Minimum 6 characters"
-                    />
-                  </div>
+                  {/* Enrolled Subjects (Students only) */}
+                  {createUserRole === 'student' && (
+                    <div className="form-section">
+                      <h3 className="form-section-title">
+                        Enrolled Subjects
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={addSubjectToCreate}>
+                          <FiPlus /> Add Subject
+                        </button>
+                      </h3>
+                      
+                      {createFormData.enrolledSubjects.length > 0 ? (
+                        <div className="subjects-edit-list">
+                          {createFormData.enrolledSubjects.map((subj, idx) => (
+                            <div key={idx} className="subject-edit-row">
+                              <div className="form-group">
+                                <label className="form-label">Subject</label>
+                                <select
+                                  className="form-input"
+                                  value={subj.subject}
+                                  onChange={(e) => handleSubjectFieldChange(idx, 'subject', e.target.value)}
+                                >
+                                  <option value="">Select Subject</option>
+                                  {subjectOptions.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Classes</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={subj.classes}
+                                  onChange={(e) => handleSubjectFieldChange(idx, 'classes', parseInt(e.target.value) || 0)}
+                                  min="0"
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Fees (₹)</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={subj.fees}
+                                  onChange={(e) => handleSubjectFieldChange(idx, 'fees', parseInt(e.target.value) || 0)}
+                                  min="0"
+                                />
+                              </div>
+                              <button 
+                                type="button" 
+                                className="btn-remove-subject"
+                                onClick={() => removeSubjectFromCreate(idx)}
+                              >
+                                <FiX />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="no-subjects-text">No subjects added. Click "Add Subject" to add one.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="modal-actions">
@@ -766,7 +1032,11 @@ const AdminDashboard = () => {
                     <div className="import-instructions">
                       <h4>CSV Format Requirements:</h4>
                       <p>Upload a CSV file with the following columns:</p>
-                      <code>Name, Email, Phone, Password (optional)</code>
+                      {importType === 'teachers' ? (
+                        <code>Name, Email, Phone, Password (optional), Specialization, Qualification</code>
+                      ) : (
+                        <code>Name, Email, Phone, Password (optional), Grade, School, FatherName, FatherContact, MotherName, MotherContact</code>
+                      )}
                       <p className="import-note">
                         <FiAlertCircle /> If password is not provided, default password "password123" will be used.
                       </p>

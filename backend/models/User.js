@@ -1,6 +1,22 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+// Schema for enrolled subjects (for students)
+const enrolledSubjectSchema = new mongoose.Schema({
+  subject: {
+    type: String,
+    required: true
+  },
+  classes: {
+    type: Number,
+    default: 0
+  },
+  fees: {
+    type: Number,
+    default: 0
+  }
+}, { _id: false });
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -16,7 +32,6 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: true,
     trim: true
   },
   password: {
@@ -37,6 +52,47 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  
+  // Student-specific fields
+  grade: {
+    type: String,
+    trim: true
+  },
+  school: {
+    type: String,
+    trim: true
+  },
+  
+  // Parent information (for students)
+  fatherName: {
+    type: String,
+    trim: true
+  },
+  fatherContact: {
+    type: String,
+    trim: true
+  },
+  motherName: {
+    type: String,
+    trim: true
+  },
+  motherContact: {
+    type: String,
+    trim: true
+  },
+  
+  // Enrolled subjects (for students)
+  enrolledSubjects: [enrolledSubjectSchema],
+  
+  // Teacher-specific fields
+  specialization: {
+    type: String,
+    trim: true
+  },
+  qualification: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

@@ -285,6 +285,109 @@
   font-size: 13px;
 }
 
+/* Large Modal */
+.modal-large {
+  max-width: 700px;
+}
+
+.modal-body-scroll {
+  max-height: 65vh;
+  overflow-y: auto;
+}
+
+/* Form Sections */
+.form-section {
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.form-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.form-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.form-section-title .btn {
+  font-size: 12px;
+  padding: 6px 12px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Subjects Edit List */
+.subjects-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subject-edit-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+}
+
+.subject-edit-row .form-group {
+  margin-bottom: 0;
+}
+
+.subject-edit-row .form-label {
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.btn-remove-subject {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--white);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius);
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-remove-subject:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: var(--danger);
+}
+
+.no-subjects-text {
+  color: var(--gray-500);
+  font-size: 14px;
+  padding: 20px;
+  text-align: center;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  border: 1px dashed var(--gray-300);
+}
+
 /* Import Modal */
 .import-modal {
   max-width: 600px;
@@ -518,5 +621,23 @@
   .results-count {
     margin-left: 0;
     text-align: center;
+  }
+  
+  .modal-large {
+    max-width: 100%;
+    margin: 10px;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .subject-edit-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .btn-remove-subject {
+    width: 100%;
+    margin-top: 8px;
   }
 }

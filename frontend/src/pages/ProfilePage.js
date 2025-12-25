@@ -2,7 +2,10 @@ import React, { useState, useEffect, useContext } from 'react';
 import Layout from '../components/Layout';
 import { AuthContext } from '../context/AuthContext';
 import { userService } from '../services/userService';
-import { FiUser, FiMail, FiPhone, FiLock, FiEdit2, FiCheck, FiX, FiShield, FiCalendar } from 'react-icons/fi';
+import { 
+  FiUser, FiMail, FiPhone, FiLock, FiEdit2, FiCheck, FiX, FiShield, 
+  FiCalendar, FiBook, FiHome, FiUsers, FiPlus, FiTrash2, FiAward
+} from 'react-icons/fi';
 import { format } from 'date-fns';
 import './ProfilePage.css';
 
@@ -17,7 +20,18 @@ const ProfilePage = () => {
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
-    phone: ''
+    phone: '',
+    // Student fields
+    grade: '',
+    school: '',
+    fatherName: '',
+    fatherContact: '',
+    motherName: '',
+    motherContact: '',
+    enrolledSubjects: [],
+    // Teacher fields
+    specialization: '',
+    qualification: ''
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
@@ -33,6 +47,18 @@ const ProfilePage = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
+  // Grade options
+  const gradeOptions = [
+    '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th',
+    '1st (Other)', '2nd (Other)', '3rd (Other)', '4th (Other)', '5th (Other)'
+  ];
+
+  // Subject options
+  const subjectOptions = [
+    'Maths', 'Science', 'English', 'Hindi', 'Social Studies', 'Physics', 
+    'Chemistry', 'Biology', 'Computer Science', 'Economics', 'Accountancy'
+  ];
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -44,7 +70,16 @@ const ProfilePage = () => {
       setEditForm({
         name: response.user.name || '',
         email: response.user.email || '',
-        phone: response.user.phone || ''
+        phone: response.user.phone || '',
+        grade: response.user.grade || '',
+        school: response.user.school || '',
+        fatherName: response.user.fatherName || '',
+        fatherContact: response.user.fatherContact || '',
+        motherName: response.user.motherName || '',
+        motherContact: response.user.motherContact || '',
+        enrolledSubjects: response.user.enrolledSubjects || [],
+        specialization: response.user.specialization || '',
+        qualification: response.user.qualification || ''
       });
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -59,6 +94,24 @@ const ProfilePage = () => {
     setEditSuccess('');
   };
 
+  const handleSubjectChange = (index, field, value) => {
+    const updatedSubjects = [...editForm.enrolledSubjects];
+    updatedSubjects[index] = { ...updatedSubjects[index], [field]: value };
+    setEditForm({ ...editForm, enrolledSubjects: updatedSubjects });
+  };
+
+  const addSubject = () => {
+    setEditForm({
+      ...editForm,
+      enrolledSubjects: [...editForm.enrolledSubjects, { subject: '', classes: 0, fees: 0 }]
+    });
+  };
+
+  const removeSubject = (index) => {
+    const updatedSubjects = editForm.enrolledSubjects.filter((_, i) => i !== index);
+    setEditForm({ ...editForm, enrolledSubjects: updatedSubjects });
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setEditLoading(true);
@@ -71,7 +124,6 @@ const ProfilePage = () => {
       setIsEditing(false);
       setEditSuccess('Profile updated successfully!');
       
-      // Update the user in context/localStorage
       const token = localStorage.getItem('token');
       login(response.user, token);
       
@@ -88,7 +140,16 @@ const ProfilePage = () => {
     setEditForm({
       name: profile?.name || '',
       email: profile?.email || '',
-      phone: profile?.phone || ''
+      phone: profile?.phone || '',
+      grade: profile?.grade || '',
+      school: profile?.school || '',
+      fatherName: profile?.fatherName || '',
+      fatherContact: profile?.fatherContact || '',
+      motherName: profile?.motherName || '',
+      motherContact: profile?.motherContact || '',
+      enrolledSubjects: profile?.enrolledSubjects || [],
+      specialization: profile?.specialization || '',
+      qualification: profile?.qualification || ''
     });
     setEditError('');
   };
@@ -187,7 +248,7 @@ const ProfilePage = () => {
           {activeTab === 'profile' && (
             <div className="profile-section">
               <div className="section-header">
-                <h2>Personal Information</h2>
+                <h2>{isEditing ? 'Edit Profile' : 'Personal Information'}</h2>
                 {!isEditing ? (
                   <button className="btn btn-secondary" onClick={() => setIsEditing(true)}>
                     <FiEdit2 /> Edit Profile
@@ -212,94 +273,397 @@ const ProfilePage = () => {
               {editSuccess && <div className="alert alert-success">{editSuccess}</div>}
 
               {!isEditing ? (
-                <div className="profile-details">
-                  <div className="detail-item">
-                    <div className="detail-icon">
-                      <FiUser />
-                    </div>
-                    <div className="detail-content">
-                      <label>Full Name</label>
-                      <p>{profile?.name}</p>
+                // View Mode
+                <div className="profile-view">
+                  {/* Basic Information */}
+                  <div className="info-section">
+                    <h3 className="info-section-title">
+                      {profile?.role === 'student' ? 'Student Information' : 
+                       profile?.role === 'teacher' ? 'Teacher Information' : 'Basic Information'}
+                    </h3>
+                    <div className="profile-details">
+                      <div className="detail-item">
+                        <div className="detail-icon"><FiUser /></div>
+                        <div className="detail-content">
+                          <label>Full Name</label>
+                          <p>{profile?.name}</p>
+                        </div>
+                      </div>
+
+                      <div className="detail-item">
+                        <div className="detail-icon"><FiMail /></div>
+                        <div className="detail-content">
+                          <label>Email Address</label>
+                          <p>{profile?.email}</p>
+                        </div>
+                      </div>
+
+                      {profile?.role === 'student' && (
+                        <>
+                          <div className="detail-row">
+                            <div className="detail-item">
+                              <div className="detail-icon"><FiBook /></div>
+                              <div className="detail-content">
+                                <label>Grade</label>
+                                <p>{profile?.grade || 'Not specified'}</p>
+                              </div>
+                            </div>
+                            <div className="detail-item">
+                              <div className="detail-icon"><FiHome /></div>
+                              <div className="detail-content">
+                                <label>School</label>
+                                <p>{profile?.school || 'Not specified'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {profile?.role === 'teacher' && (
+                        <>
+                          <div className="detail-item">
+                            <div className="detail-icon"><FiBook /></div>
+                            <div className="detail-content">
+                              <label>Specialization</label>
+                              <p>{profile?.specialization || 'Not specified'}</p>
+                            </div>
+                          </div>
+                          <div className="detail-item">
+                            <div className="detail-icon"><FiAward /></div>
+                            <div className="detail-content">
+                              <label>Qualification</label>
+                              <p>{profile?.qualification || 'Not specified'}</p>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      <div className="detail-item">
+                        <div className="detail-icon"><FiPhone /></div>
+                        <div className="detail-content">
+                          <label>Mobile Number</label>
+                          <p>{profile?.phone || 'Not provided'}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="detail-item">
-                    <div className="detail-icon">
-                      <FiMail />
+                  {/* Parent Information (Students only) */}
+                  {profile?.role === 'student' && (
+                    <div className="info-section">
+                      <h3 className="info-section-title">Parent Information</h3>
+                      <div className="profile-details">
+                        <div className="detail-row">
+                          <div className="detail-item">
+                            <div className="detail-icon"><FiUsers /></div>
+                            <div className="detail-content">
+                              <label>Father's Name</label>
+                              <p>{profile?.fatherName || 'Not provided'}</p>
+                            </div>
+                          </div>
+                          <div className="detail-item">
+                            <div className="detail-icon"><FiPhone /></div>
+                            <div className="detail-content">
+                              <label>Father's Contact</label>
+                              <p>{profile?.fatherContact || 'Not provided'}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="detail-row">
+                          <div className="detail-item">
+                            <div className="detail-icon"><FiUsers /></div>
+                            <div className="detail-content">
+                              <label>Mother's Name</label>
+                              <p>{profile?.motherName || 'Not provided'}</p>
+                            </div>
+                          </div>
+                          <div className="detail-item">
+                            <div className="detail-icon"><FiPhone /></div>
+                            <div className="detail-content">
+                              <label>Mother's Contact</label>
+                              <p>{profile?.motherContact || 'Not provided'}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="detail-content">
-                      <label>Email Address</label>
-                      <p>{profile?.email}</p>
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="detail-item">
-                    <div className="detail-icon">
-                      <FiPhone />
+                  {/* Enrolled Subjects (Students only) */}
+                  {profile?.role === 'student' && (
+                    <div className="info-section">
+                      <h3 className="info-section-title">Enrolled Subjects</h3>
+                      {profile?.enrolledSubjects?.length > 0 ? (
+                        <div className="subjects-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Subject</th>
+                                <th>Classes</th>
+                                <th>Fees</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {profile.enrolledSubjects.map((subj, idx) => (
+                                <tr key={idx}>
+                                  <td>{subj.subject}</td>
+                                  <td>{subj.classes}</td>
+                                  <td>₹{subj.fees?.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="no-data">No subjects enrolled yet</p>
+                      )}
                     </div>
-                    <div className="detail-content">
-                      <label>Phone Number</label>
-                      <p>{profile?.phone || 'Not provided'}</p>
-                    </div>
-                  </div>
+                  )}
 
-                  <div className="detail-item">
-                    <div className="detail-icon">
-                      <FiShield />
-                    </div>
-                    <div className="detail-content">
-                      <label>Role</label>
-                      <p style={{ textTransform: 'capitalize' }}>{profile?.role}</p>
-                    </div>
-                  </div>
-
-                  <div className="detail-item">
-                    <div className="detail-icon">
-                      <FiCalendar />
-                    </div>
-                    <div className="detail-content">
-                      <label>Member Since</label>
-                      <p>{profile?.createdAt ? format(new Date(profile.createdAt), 'MMMM d, yyyy') : 'N/A'}</p>
+                  {/* Account Info */}
+                  <div className="info-section">
+                    <h3 className="info-section-title">Account Information</h3>
+                    <div className="profile-details">
+                      <div className="detail-item">
+                        <div className="detail-icon"><FiShield /></div>
+                        <div className="detail-content">
+                          <label>Role</label>
+                          <p style={{ textTransform: 'capitalize' }}>{profile?.role}</p>
+                        </div>
+                      </div>
+                      <div className="detail-item">
+                        <div className="detail-icon"><FiCalendar /></div>
+                        <div className="detail-content">
+                          <label>Member Since</label>
+                          <p>{profile?.createdAt ? format(new Date(profile.createdAt), 'MMMM d, yyyy') : 'N/A'}</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               ) : (
+                // Edit Mode
                 <form className="edit-form" onSubmit={handleSaveProfile}>
-                  <div className="form-group">
-                    <label className="form-label">Full Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-input"
-                      value={editForm.name}
-                      onChange={handleEditChange}
-                      required
-                    />
+                  {/* Student Information Section */}
+                  <div className="form-section">
+                    <h3 className="form-section-title">
+                      {profile?.role === 'student' ? 'Student Information' : 
+                       profile?.role === 'teacher' ? 'Teacher Information' : 'Basic Information'}
+                    </h3>
+                    
+                    <div className="form-group">
+                      <label className="form-label">Name</label>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-input"
+                        value={editForm.name}
+                        onChange={handleEditChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Email</label>
+                      <input
+                        type="email"
+                        name="email"
+                        className="form-input"
+                        value={editForm.email}
+                        onChange={handleEditChange}
+                        required
+                      />
+                    </div>
+
+                    {profile?.role === 'student' && (
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Grade</label>
+                          <select
+                            name="grade"
+                            className="form-input"
+                            value={editForm.grade}
+                            onChange={handleEditChange}
+                          >
+                            <option value="">Select Grade</option>
+                            {gradeOptions.map(g => (
+                              <option key={g} value={g}>{g}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">School</label>
+                          <input
+                            type="text"
+                            name="school"
+                            className="form-input"
+                            placeholder="School name"
+                            value={editForm.school}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {profile?.role === 'teacher' && (
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Specialization</label>
+                          <input
+                            type="text"
+                            name="specialization"
+                            className="form-input"
+                            placeholder="e.g. Mathematics, Science"
+                            value={editForm.specialization}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Qualification</label>
+                          <input
+                            type="text"
+                            name="qualification"
+                            className="form-input"
+                            placeholder="e.g. M.Sc, B.Ed"
+                            value={editForm.qualification}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="form-group">
+                      <label className="form-label">Mobile Number</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        className="form-input"
+                        placeholder="+1(480)5696714"
+                        value={editForm.phone}
+                        onChange={handleEditChange}
+                      />
+                    </div>
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Email Address</label>
-                    <input
-                      type="email"
-                      name="email"
-                      className="form-input"
-                      value={editForm.email}
-                      onChange={handleEditChange}
-                      required
-                    />
-                  </div>
+                  {/* Parent Information (Students only) */}
+                  {profile?.role === 'student' && (
+                    <div className="form-section">
+                      <h3 className="form-section-title">Parent Information</h3>
+                      
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Father's Name</label>
+                          <input
+                            type="text"
+                            name="fatherName"
+                            className="form-input"
+                            placeholder="Father's full name"
+                            value={editForm.fatherName}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Father's Contact</label>
+                          <input
+                            type="tel"
+                            name="fatherContact"
+                            className="form-input"
+                            placeholder="+1(480)569-6714"
+                            value={editForm.fatherContact}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                      </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Phone Number</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      className="form-input"
-                      value={editForm.phone}
-                      onChange={handleEditChange}
-                      placeholder="Enter your phone number"
-                    />
-                  </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Mother's Name</label>
+                          <input
+                            type="text"
+                            name="motherName"
+                            className="form-input"
+                            placeholder="Mother's full name"
+                            value={editForm.motherName}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Mother's Contact</label>
+                          <input
+                            type="tel"
+                            name="motherContact"
+                            className="form-input"
+                            placeholder="+1234567890"
+                            value={editForm.motherContact}
+                            onChange={handleEditChange}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enrolled Subjects (Students only) */}
+                  {profile?.role === 'student' && (
+                    <div className="form-section">
+                      <h3 className="form-section-title">
+                        Enrolled Subjects
+                        <button type="button" className="btn btn-sm btn-secondary" onClick={addSubject}>
+                          <FiPlus /> Add Subject
+                        </button>
+                      </h3>
+                      
+                      {editForm.enrolledSubjects.length > 0 ? (
+                        <div className="subjects-edit-list">
+                          {editForm.enrolledSubjects.map((subj, idx) => (
+                            <div key={idx} className="subject-edit-row">
+                              <div className="form-group">
+                                <label className="form-label">Subject</label>
+                                <select
+                                  className="form-input"
+                                  value={subj.subject}
+                                  onChange={(e) => handleSubjectChange(idx, 'subject', e.target.value)}
+                                >
+                                  <option value="">Select Subject</option>
+                                  {subjectOptions.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Classes</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={subj.classes}
+                                  onChange={(e) => handleSubjectChange(idx, 'classes', parseInt(e.target.value) || 0)}
+                                  min="0"
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label className="form-label">Fees (₹)</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={subj.fees}
+                                  onChange={(e) => handleSubjectChange(idx, 'fees', parseInt(e.target.value) || 0)}
+                                  min="0"
+                                />
+                              </div>
+                              <button 
+                                type="button" 
+                                className="btn-remove-subject"
+                                onClick={() => removeSubject(idx)}
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="no-data">No subjects added. Click "Add Subject" to add one.</p>
+                      )}
+                    </div>
+                  )}
                 </form>
               )}
             </div>
@@ -384,4 +748,3 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
-

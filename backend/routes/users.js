@@ -35,9 +35,17 @@ router.put('/profile', protect, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, phone, email } = req.body;
+    const { 
+      name, phone, email,
+      // Student fields
+      grade, school, fatherName, fatherContact, motherName, motherContact, enrolledSubjects,
+      // Teacher fields
+      specialization, qualification
+    } = req.body;
+    
     const updateData = {};
     
+    // Common fields
     if (name) updateData.name = name;
     if (phone !== undefined) updateData.phone = phone;
     
@@ -48,6 +56,23 @@ router.put('/profile', protect, [
         return res.status(400).json({ message: 'Email already in use' });
       }
       updateData.email = email;
+    }
+
+    // Student-specific fields
+    if (req.user.role === 'student') {
+      if (grade !== undefined) updateData.grade = grade;
+      if (school !== undefined) updateData.school = school;
+      if (fatherName !== undefined) updateData.fatherName = fatherName;
+      if (fatherContact !== undefined) updateData.fatherContact = fatherContact;
+      if (motherName !== undefined) updateData.motherName = motherName;
+      if (motherContact !== undefined) updateData.motherContact = motherContact;
+      if (enrolledSubjects !== undefined) updateData.enrolledSubjects = enrolledSubjects;
+    }
+
+    // Teacher-specific fields
+    if (req.user.role === 'teacher') {
+      if (specialization !== undefined) updateData.specialization = specialization;
+      if (qualification !== undefined) updateData.qualification = qualification;
     }
 
     const user = await User.findByIdAndUpdate(
