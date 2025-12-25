@@ -156,78 +156,75 @@ const TeacherDashboard = () => {
           <div className="dashboard-main">
             {/* Active Classes */}
             <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">
-              <FiCalendar /> Active Classes ({upcomingClasses.length})
-            </h2>
-          </div>
-          <div className="classes-grid">
-            {upcomingClasses.length === 0 ? (
-              <p className="empty-state">No active classes</p>
-            ) : (
-              upcomingClasses.map((classItem) => (
-                <div key={classItem._id} className="class-card">
-                  <h3>{classItem.title}</h3>
-                  {classItem.description && <p className="class-description">{classItem.description}</p>}
-                  <p className="class-time">
-                    <FiCalendar /> Starts: {format(new Date(classItem.scheduledTime), 'PPpp')}
-                  </p>
-                  <p className="class-time">
-                    Ends: {format(getClassStatus(classItem).endTime, 'PPpp')}
-                  </p>
-                  <p className="class-status">
-                    <span className={`badge ${getClassStatus(classItem).status === 'In progress' ? 'badge-ongoing' : 'badge-scheduled'}`}>
-                      {getClassStatus(classItem).status}
-                    </span>
-                  </p>
-                  <p className="class-students">
-                    <FiUsers /> {classItem.students?.length || 0} students
-                  </p>
-                  <div className="class-actions">
-                    <button
-                      className="btn btn-primary"
-                      onClick={() => handleJoinClass(classItem._id)}
-                    >
-                      <FiVideo /> Join Class
-                    </button>
-                    <button
-                      className="btn btn-danger"
-                      onClick={() => handleDeleteClass(classItem._id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+              <div className="card-header">
+                <h2 className="card-title">
+                  <FiCalendar /> Active Classes ({upcomingClasses.length})
+                </h2>
+              </div>
+              <div className="classes-grid">
+                {upcomingClasses.length === 0 ? (
+                  <p className="empty-state">No active classes at the moment</p>
+                ) : (
+                  upcomingClasses.map((classItem) => (
+                    <div key={classItem._id} className="class-card">
+                      <h3>{classItem.title}</h3>
+                      {classItem.description && <p className="class-description">{classItem.description}</p>}
+                      <div className="class-meta">
+                        <p className="class-time">
+                          <FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}
+                        </p>
+                        <p className="class-students">
+                          <FiUsers /> {classItem.students?.length || 0} students enrolled
+                        </p>
+                      </div>
+                      <div className="class-status">
+                        <span className={`badge ${getClassStatus(classItem).status === 'In progress' ? 'badge-ongoing' : 'badge-scheduled'}`}>
+                          {getClassStatus(classItem).status}
+                        </span>
+                      </div>
+                      <div className="class-actions">
+                        <button className="btn btn-primary" onClick={() => handleJoinClass(classItem._id)}>
+                          <FiVideo /> Join Class
+                        </button>
+                        <button className="btn btn-danger" onClick={() => handleDeleteClass(classItem._id)}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
 
             {/* Past Classes */}
             <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">Past Classes</h2>
-          </div>
-          <div className="classes-grid">
-            {pastClasses.length === 0 ? (
-              <p className="empty-state">No past classes</p>
-            ) : (
-              pastClasses.map((classItem) => (
-                <div key={classItem._id} className="class-card">
-                  <h3>{classItem.title}</h3>
-                  <p className="class-time">
-                    {format(new Date(classItem.scheduledTime), 'PPpp')}
-                  </p>
-                  <p className="class-students">
-                    {classItem.students?.length || 0} students
-                  </p>
-                  <span className={`badge badge-${classItem.status}`}>
-                    {classItem.status}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
+              <div className="card-header">
+                <h2 className="card-title">Past Classes</h2>
+              </div>
+              <div className="classes-grid">
+                {pastClasses.length === 0 ? (
+                  <p className="empty-state">No past classes</p>
+                ) : (
+                  pastClasses.map((classItem) => (
+                    <div key={classItem._id} className="class-card">
+                      <h3>{classItem.title}</h3>
+                      <div className="class-meta">
+                        <p className="class-time">
+                          <FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}
+                        </p>
+                        <p className="class-students">
+                          <FiUsers /> {classItem.students?.length || 0} students
+                        </p>
+                      </div>
+                      <div className="class-status">
+                        <span className={`badge badge-${classItem.status}`}>
+                          {classItem.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
@@ -246,66 +243,75 @@ const TeacherDashboard = () => {
                 <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
               </div>
               <form onSubmit={handleSubmit}>
-                <div className="form-group">
-                  <label className="form-label">Class Title</label>
-                  <input
-                    type="text"
-                    name="title"
-                    className="form-input"
-                    value={formData.title}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label className="form-label">Class Title</label>
+                    <input
+                      type="text"
+                      name="title"
+                      className="form-input"
+                      placeholder="Enter class title"
+                      value={formData.title}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Description</label>
-                  <textarea
-                    name="description"
-                    className="form-textarea"
-                    value={formData.description}
-                    onChange={handleChange}
-                  />
-                </div>
+                  <div className="form-group">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      name="description"
+                      className="form-textarea"
+                      placeholder="Enter class description (optional)"
+                      value={formData.description}
+                      onChange={handleChange}
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Scheduled Time</label>
-                  <input
-                    type="datetime-local"
-                    name="scheduledTime"
-                    className="form-input"
-                    value={formData.scheduledTime}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
+                  <div className="form-group">
+                    <label className="form-label">Scheduled Time</label>
+                    <input
+                      type="datetime-local"
+                      name="scheduledTime"
+                      className="form-input"
+                      value={formData.scheduledTime}
+                      onChange={handleChange}
+                      required
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Duration (minutes)</label>
-                  <input
-                    type="number"
-                    name="duration"
-                    className="form-input"
-                    value={formData.duration}
-                    onChange={handleChange}
-                    min="15"
-                    required
-                  />
-                </div>
+                  <div className="form-group">
+                    <label className="form-label">Duration (minutes)</label>
+                    <input
+                      type="number"
+                      name="duration"
+                      className="form-input"
+                      placeholder="60"
+                      value={formData.duration}
+                      onChange={handleChange}
+                      min="15"
+                      required
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label className="form-label">Select Students</label>
-                  <div className="student-select">
-                    {students.map((student) => (
-                      <label key={student._id} className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={formData.studentIds?.includes(student._id)}
-                          onChange={() => handleStudentSelect(student._id)}
-                        />
-                        <span>{student.name}</span>
-                      </label>
-                    ))}
+                  <div className="form-group">
+                    <label className="form-label">Select Students</label>
+                    <div className="student-select">
+                      {students.length === 0 ? (
+                        <p style={{ padding: '16px', color: 'var(--gray-500)', textAlign: 'center' }}>No students available</p>
+                      ) : (
+                        students.map((student) => (
+                          <label key={student._id} className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={formData.studentIds?.includes(student._id)}
+                              onChange={() => handleStudentSelect(student._id)}
+                            />
+                            <span>{student.name}</span>
+                          </label>
+                        ))
+                      )}
+                    </div>
                   </div>
                 </div>
 

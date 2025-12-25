@@ -52,11 +52,12 @@ const Login = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Email</label>
+            <label className="form-label">Email Address</label>
             <input
               type="email"
               name="email"
               className="form-input"
+              placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
               required
@@ -69,6 +70,7 @@ const Login = () => {
               type="password"
               name="password"
               className="form-input"
+              placeholder="Enter your password"
               value={formData.password}
               onChange={handleChange}
               required
