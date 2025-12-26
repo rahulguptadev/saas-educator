@@ -14,10 +14,13 @@ router.use(protect, authorize('admin'));
 // @access  Private (Admin)
 router.get('/stats', async (req, res) => {
   try {
+    const Group = require('../models/Group');
+    
     const totalUsers = await User.countDocuments();
     const totalTeachers = await User.countDocuments({ role: 'teacher' });
     const totalStudents = await User.countDocuments({ role: 'student' });
     const totalClasses = await Class.countDocuments();
+    const totalGroups = await Group.countDocuments();
     const upcomingClasses = await Class.countDocuments({ 
       scheduledTime: { $gte: new Date() },
       status: 'scheduled'
@@ -29,6 +32,7 @@ router.get('/stats', async (req, res) => {
         totalTeachers,
         totalStudents,
         totalClasses,
+        totalGroups,
         upcomingClasses
       }
     });

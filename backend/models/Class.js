@@ -15,6 +15,11 @@ const classSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  // Optional: Link to a group (if class is for a group)
+  group: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Group'
+  },
   students: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

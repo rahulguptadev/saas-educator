@@ -3,22 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ChatWidget from '../components/ChatWidget';
 import { classService } from '../services/classService';
-import { userService } from '../services/userService';
-import { FiPlus, FiVideo, FiCalendar, FiUsers } from 'react-icons/fi';
+import { groupService } from '../services/groupService';
+import { FiPlus, FiVideo, FiCalendar, FiUsers, FiLayers } from 'react-icons/fi';
 import { format } from 'date-fns';
 import './Dashboard.css';
 
 const TeacherDashboard = () => {
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectionMode, setSelectionMode] = useState('group'); // 'group' or 'students'
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     scheduledTime: '',
     duration: 60,
-    studentIds: []
+    studentIds: [],
+    groupId: ''
   });
   const navigate = useNavigate();
 
@@ -28,12 +31,14 @@ const TeacherDashboard = () => {
 
   const loadData = async () => {
     try {
-      const [classesRes, studentsRes] = await Promise.all([
+      const [classesRes, studentsRes, groupsRes] = await Promise.all([
         classService.getClasses(),
-        userService.getStudents()
+        groupService.getMyStudents(),
+        groupService.getGroups()
       ]);
       setClasses(classesRes.classes);
-      setStudents(studentsRes.students);
+      setStudents(studentsRes.students || []);
+      setGroups(groupsRes.groups || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -64,11 +69,20 @@ const TeacherDashboard = () => {
       // datetime-local format: "YYYY-MM-DDTHH:mm" (local time, no timezone)
       // new Date() interprets it as local time, toISOString() converts to UTC
       const classData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
+        duration: formData.duration,
         scheduledTime: formData.scheduledTime 
           ? new Date(formData.scheduledTime).toISOString()
           : formData.scheduledTime
       };
+
+      // Add either groupId or studentIds based on selection mode
+      if (selectionMode === 'group' && formData.groupId) {
+        classData.groupId = formData.groupId;
+      } else if (selectionMode === 'students') {
+        classData.studentIds = formData.studentIds;
+      }
 
       await classService.createClass(classData);
       setShowModal(false);
@@ -77,8 +91,10 @@ const TeacherDashboard = () => {
         description: '',
         scheduledTime: '',
         duration: 60,
-        studentIds: []
+        studentIds: [],
+        groupId: ''
       });
+      setSelectionMode('group');
       loadData();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to create class');
@@ -295,24 +311,74 @@ const TeacherDashboard = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Select Students</label>
-                    <div className="student-select">
-                      {students.length === 0 ? (
-                        <p style={{ padding: '16px', color: 'var(--gray-500)', textAlign: 'center' }}>No students available</p>
-                      ) : (
-                        students.map((student) => (
-                          <label key={student._id} className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={formData.studentIds?.includes(student._id)}
-                              onChange={() => handleStudentSelect(student._id)}
-                            />
-                            <span>{student.name}</span>
-                          </label>
-                        ))
-                      )}
+                    <label className="form-label">Add Participants</label>
+                    <div className="selection-mode-toggle">
+                      <button 
+                        type="button"
+                        className={`toggle-btn ${selectionMode === 'group' ? 'active' : ''}`}
+                        onClick={() => setSelectionMode('group')}
+                      >
+                        <FiLayers /> Select Group
+                      </button>
+                      <button 
+                        type="button"
+                        className={`toggle-btn ${selectionMode === 'students' ? 'active' : ''}`}
+                        onClick={() => setSelectionMode('students')}
+                      >
+                        <FiUsers /> Select Students
+                      </button>
                     </div>
                   </div>
+
+                  {selectionMode === 'group' ? (
+                    <div className="form-group">
+                      <label className="form-label">Select Group</label>
+                      <select
+                        name="groupId"
+                        className="form-input"
+                        value={formData.groupId}
+                        onChange={handleChange}
+                      >
+                        <option value="">-- Select a Group --</option>
+                        {groups.filter(g => g.isActive).map((group) => (
+                          <option key={group._id} value={group._id}>
+                            {group.name} ({group.students?.length || 0} students)
+                          </option>
+                        ))}
+                      </select>
+                      {groups.length === 0 && (
+                        <small className="form-hint">
+                          No groups assigned to you. Contact admin to create groups.
+                        </small>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label className="form-label">Select Students</label>
+                      <div className="student-select">
+                        {students.length === 0 ? (
+                          <p style={{ padding: '16px', color: 'var(--gray-500)', textAlign: 'center' }}>
+                            No students in your groups. Contact admin to add students to your groups.
+                          </p>
+                        ) : (
+                          students.map((student) => (
+                            <label key={student._id} className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={formData.studentIds?.includes(student._id)}
+                                onChange={() => handleStudentSelect(student._id)}
+                              />
+                              <span>{student.name}</span>
+                              {student.grade && <small className="student-grade">{student.grade}</small>}
+                            </label>
+                          ))
+                        )}
+                      </div>
+                      <small className="form-hint">
+                        Selected: {formData.studentIds?.length || 0} students
+                      </small>
+                    </div>
+                  )}
                 </div>
 
                 <div className="modal-actions">
