@@ -13,6 +13,7 @@ const TeacherDashboard = () => {
   const [students, setStudents] = useState([]);
   const [groups, setGroups] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showPastClassesModal, setShowPastClassesModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectionMode, setSelectionMode] = useState('group'); // 'group' or 'students'
   const [formData, setFormData] = useState({
@@ -215,32 +216,42 @@ const TeacherDashboard = () => {
             {/* Past Classes */}
             <div className="card">
               <div className="card-header">
-                <h2 className="card-title">Past Classes</h2>
+                <h2 className="card-title">Past Classes ({pastClasses.length})</h2>
               </div>
               <div className="classes-grid">
                 {pastClasses.length === 0 ? (
                   <p className="empty-state">No past classes</p>
                 ) : (
-                  pastClasses.map((classItem) => (
-                    <div key={classItem._id} className="class-card">
+                  pastClasses.slice(0, 6).map((classItem) => (
+                    <div key={classItem._id} className="class-card class-card-past">
                       <h3>{classItem.title}</h3>
                       <div className="class-meta">
                         <p className="class-time">
                           <FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}
                         </p>
                         <p className="class-students">
-                          <FiUsers /> {classItem.students?.length || 0} students
+                          <FiUsers /> {classItem.students?.length || 0} students attended
+                        </p>
+                        <p className="class-duration">
+                          Duration: {classItem.duration || 60} mins
                         </p>
                       </div>
                       <div className="class-status">
-                        <span className={`badge badge-${classItem.status}`}>
-                          {classItem.status}
+                        <span className="badge badge-completed">
+                          COMPLETED
                         </span>
                       </div>
                     </div>
                   ))
                 )}
               </div>
+              {pastClasses.length > 6 && (
+                <div className="view-more">
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowPastClassesModal(true)}>
+                    View All Past Classes ({pastClasses.length})
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -390,6 +401,44 @@ const TeacherDashboard = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Past Classes Modal */}
+        {showPastClassesModal && (
+          <div className="modal-overlay" onClick={() => setShowPastClassesModal(false)}>
+            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Past Classes ({pastClasses.length})</h2>
+                <button className="modal-close" onClick={() => setShowPastClassesModal(false)}>×</button>
+              </div>
+              <div className="modal-body modal-body-scroll">
+                {pastClasses.length === 0 ? (
+                  <p className="empty-state">No past classes</p>
+                ) : (
+                  <div className="past-classes-list">
+                    {pastClasses.map((classItem) => (
+                      <div key={classItem._id} className="past-class-item">
+                        <div className="past-class-info">
+                          <h4>{classItem.title}</h4>
+                          <div className="past-class-meta">
+                            <span><FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}</span>
+                            <span><FiUsers /> {classItem.students?.length || 0} students</span>
+                            <span>Duration: {classItem.duration || 60} mins</span>
+                          </div>
+                        </div>
+                        <span className="badge badge-completed">COMPLETED</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-secondary" onClick={() => setShowPastClassesModal(false)}>
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

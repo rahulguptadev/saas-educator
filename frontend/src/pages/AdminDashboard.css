@@ -486,6 +486,33 @@
   font-size: 12px;
 }
 
+/* Class Card Past Styles */
+.admin-dashboard .class-card-past {
+  opacity: 0.75;
+  background: var(--gray-50);
+  border-color: var(--gray-200);
+}
+
+.admin-dashboard .class-card-past h3 {
+  color: var(--gray-600);
+}
+
+.admin-dashboard .badge-completed {
+  background: var(--gray-200);
+  color: var(--gray-600);
+}
+
+.admin-dashboard .badge-ongoing {
+  background: #dcfce7;
+  color: #15803d;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 /* Import Modal */
 .import-modal {
   max-width: 600px;

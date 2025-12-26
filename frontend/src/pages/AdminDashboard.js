@@ -142,10 +142,59 @@ const AdminDashboard = () => {
     return matchesSearch && matchesFilter;
   });
 
+  // Class status helpers (must be defined before filteredClasses)
+  const getClassEndTime = (classItem) => {
+    const startTime = new Date(classItem.scheduledTime);
+    return new Date(startTime.getTime() + (classItem.duration || 60) * 60 * 1000);
+  };
+
+  const isClassActive = (classItem) => {
+    const now = new Date();
+    const startTime = new Date(classItem.scheduledTime);
+    const endTime = getClassEndTime(classItem);
+    const earlyJoinWindow = 5 * 60 * 1000; // 5 minutes before
+    return now >= new Date(startTime.getTime() - earlyJoinWindow) && now <= endTime;
+  };
+
+  const isClassUpcoming = (classItem) => {
+    const now = new Date();
+    const startTime = new Date(classItem.scheduledTime);
+    const earlyJoinWindow = 5 * 60 * 1000;
+    return now < new Date(startTime.getTime() - earlyJoinWindow);
+  };
+
+  const isClassPast = (classItem) => {
+    const now = new Date();
+    const endTime = getClassEndTime(classItem);
+    return now > endTime;
+  };
+
+  const getClassStatusLabel = (classItem) => {
+    if (isClassPast(classItem)) return 'completed';
+    if (isClassActive(classItem)) return 'ongoing';
+    return 'scheduled';
+  };
+
   const filteredClasses = classes.filter(classItem => {
     const matchesSearch = classItem.title.toLowerCase().includes(classSearch.toLowerCase()) ||
                           classItem.teacher?.name.toLowerCase().includes(classSearch.toLowerCase());
-    const matchesFilter = classFilter === 'all' || classItem.status === classFilter;
+    
+    // Dynamic status based on time
+    const dynamicStatus = getClassStatusLabel(classItem);
+    
+    let matchesFilter = false;
+    if (classFilter === 'all') {
+      matchesFilter = true;
+    } else if (classFilter === 'active') {
+      matchesFilter = isClassActive(classItem);
+    } else if (classFilter === 'upcoming') {
+      matchesFilter = isClassUpcoming(classItem);
+    } else if (classFilter === 'past') {
+      matchesFilter = isClassPast(classItem);
+    } else {
+      matchesFilter = dynamicStatus === classFilter;
+    }
+    
     return matchesSearch && matchesFilter;
   });
 
@@ -810,10 +859,9 @@ const AdminDashboard = () => {
                     <FiFilter />
                     <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
                       <option value="all">All Status</option>
-                      <option value="scheduled">Scheduled</option>
-                      <option value="ongoing">Ongoing</option>
-                      <option value="completed">Completed</option>
-                      <option value="cancelled">Cancelled</option>
+                      <option value="active">Active Now</option>
+                      <option value="upcoming">Upcoming</option>
+                      <option value="past">Past Classes</option>
                     </select>
                   </div>
                   <div className="results-count">
@@ -829,38 +877,50 @@ const AdminDashboard = () => {
                     </div>
                   ) : (
                     <div className="classes-grid">
-                      {filteredClasses.map((classItem) => (
-                        <div key={classItem._id} className="class-card">
-                          <h3>{classItem.title}</h3>
-                          {classItem.description && (
-                            <p className="class-description">{classItem.description}</p>
-                          )}
-                          <div className="class-meta">
-                            <p className="class-teacher">
-                              <FiUserCheck /> {classItem.teacher?.name}
-                            </p>
-                            <p className="class-time">
-                              <FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}
-                            </p>
-                            <p className="class-students">
-                              <FiUsers /> {classItem.students?.length || 0} students
-                            </p>
+                      {filteredClasses.map((classItem) => {
+                        const dynamicStatus = getClassStatusLabel(classItem);
+                        const canJoin = isClassActive(classItem) || isClassUpcoming(classItem);
+                        const isPast = isClassPast(classItem);
+                        
+                        return (
+                          <div key={classItem._id} className={`class-card ${isPast ? 'class-card-past' : ''}`}>
+                            <h3>{classItem.title}</h3>
+                            {classItem.description && (
+                              <p className="class-description">{classItem.description}</p>
+                            )}
+                            <div className="class-meta">
+                              <p className="class-teacher">
+                                <FiUserCheck /> {classItem.teacher?.name}
+                              </p>
+                              <p className="class-time">
+                                <FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}
+                              </p>
+                              <p className="class-students">
+                                <FiUsers /> {classItem.students?.length || 0} students
+                              </p>
+                            </div>
+                            <div className="class-status">
+                              <span className={`badge badge-${dynamicStatus}`}>
+                                {dynamicStatus === 'ongoing' ? 'LIVE NOW' : dynamicStatus.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="class-actions">
+                              {canJoin ? (
+                                <button
+                                  className="btn btn-primary"
+                                  onClick={() => handleJoinClass(classItem._id)}
+                                >
+                                  <FiVideo /> Join Class
+                                </button>
+                              ) : (
+                                <button className="btn btn-secondary" disabled>
+                                  Class Ended
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <div className="class-status">
-                            <span className={`badge badge-${classItem.status}`}>
-                              {classItem.status}
-                            </span>
-                          </div>
-                          <div className="class-actions">
-                            <button
-                              className="btn btn-primary"
-                              onClick={() => handleJoinClass(classItem._id)}
-                            >
-                              <FiVideo /> Join Class
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
