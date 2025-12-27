@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ChatWidget from '../components/ChatWidget';
+import ClassCalendar from '../components/ClassCalendar';
 import { classService } from '../services/classService';
 import { FiVideo, FiCalendar, FiUser, FiClock, FiUsers } from 'react-icons/fi';
 import { format } from 'date-fns';
@@ -11,6 +12,7 @@ const StudentDashboard = () => {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPastClassesModal, setShowPastClassesModal] = useState(false);
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,6 +54,13 @@ const StudentDashboard = () => {
     return now >= startTime && now < endTime;
   };
 
+  const isClassUpcoming = (classItem) => {
+    const scheduledTime = new Date(classItem.scheduledTime);
+    const startTime = new Date(scheduledTime.getTime() - 5 * 60000);
+    const now = new Date();
+    return now < startTime;
+  };
+
   const getClassStatus = (classItem) => {
     const scheduledTime = new Date(classItem.scheduledTime);
     const duration = classItem.duration || 60;
@@ -74,10 +83,42 @@ const StudentDashboard = () => {
       <div className="dashboard">
         <div className="dashboard-header">
           <h1 className="dashboard-title">My Classes</h1>
+          <div className="view-toggle">
+            <button 
+              className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setViewMode('list')}
+            >
+              <FiCalendar /> List View
+            </button>
+            <button 
+              className={`btn btn-sm ${viewMode === 'calendar' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setViewMode('calendar')}
+            >
+              <FiCalendar /> Calendar
+            </button>
+          </div>
         </div>
 
         <div className="dashboard-grid">
           <div className="dashboard-main">
+            {viewMode === 'calendar' ? (
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">
+                    <FiCalendar /> My Class Calendar
+                  </h2>
+                </div>
+                <ClassCalendar 
+                  classes={classes} 
+                  onClassClick={(classItem) => {
+                    if (isClassActive(classItem) || isClassUpcoming(classItem)) {
+                      handleJoinClass(classItem._id);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <>
             {/* Active Classes */}
             <div className="card">
               <div className="card-header">
@@ -162,6 +203,8 @@ const StudentDashboard = () => {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
 
           {/* Sidebar */}

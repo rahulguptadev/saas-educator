@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import ChatWidget from '../components/ChatWidget';
+import ClassCalendar from '../components/ClassCalendar';
 import { classService } from '../services/classService';
 import { groupService } from '../services/groupService';
-import { FiPlus, FiVideo, FiCalendar, FiUsers, FiLayers } from 'react-icons/fi';
+import { FiPlus, FiVideo, FiCalendar, FiUsers, FiLayers, FiRepeat } from 'react-icons/fi';
 import { format } from 'date-fns';
 import './Dashboard.css';
 
@@ -22,8 +23,14 @@ const TeacherDashboard = () => {
     scheduledTime: '',
     duration: 60,
     studentIds: [],
-    groupId: ''
+    groupId: '',
+    isRecurring: false,
+    recurrencePattern: 'weekly',
+    recurrenceDays: [],
+    recurrenceEndDate: '',
+    recurrenceDuration: 1
   });
+  const [viewMode, setViewMode] = useState('list'); // 'list' or 'calendar'
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -65,17 +72,41 @@ const TeacherDashboard = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validation: Must have either group or students
+    if (selectionMode === 'group' && !formData.groupId) {
+      alert('Please select a group');
+      return;
+    }
+    
+    if (selectionMode === 'students' && (!formData.studentIds || formData.studentIds.length === 0)) {
+      alert('Please select at least one student');
+      return;
+    }
+
+    // Validation: Custom recurrence must have days selected
+    if (formData.isRecurring && formData.recurrencePattern === 'custom' && 
+        (!formData.recurrenceDays || formData.recurrenceDays.length === 0)) {
+      alert('Please select at least one day for custom recurrence');
+      return;
+    }
+
     try {
       // Convert datetime-local string to ISO string
-      // datetime-local format: "YYYY-MM-DDTHH:mm" (local time, no timezone)
-      // new Date() interprets it as local time, toISOString() converts to UTC
       const classData = {
         title: formData.title,
         description: formData.description,
         duration: formData.duration,
         scheduledTime: formData.scheduledTime 
           ? new Date(formData.scheduledTime).toISOString()
-          : formData.scheduledTime
+          : formData.scheduledTime,
+        isRecurring: formData.isRecurring,
+        recurrencePattern: formData.isRecurring ? formData.recurrencePattern : null,
+        recurrenceDays: formData.isRecurring && formData.recurrencePattern === 'custom' ? formData.recurrenceDays : [],
+        recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate 
+          ? new Date(formData.recurrenceEndDate).toISOString() 
+          : null,
+        recurrenceDuration: formData.isRecurring && !formData.recurrenceEndDate ? formData.recurrenceDuration : null
       };
 
       // Add either groupId or studentIds based on selection mode
@@ -85,7 +116,12 @@ const TeacherDashboard = () => {
         classData.studentIds = formData.studentIds;
       }
 
-      await classService.createClass(classData);
+      const response = await classService.createClass(classData);
+      
+      if (response.count) {
+        alert(`Successfully created ${response.count} recurring classes!`);
+      }
+      
       setShowModal(false);
       setFormData({
         title: '',
@@ -93,7 +129,12 @@ const TeacherDashboard = () => {
         scheduledTime: '',
         duration: 60,
         studentIds: [],
-        groupId: ''
+        groupId: '',
+        isRecurring: false,
+        recurrencePattern: 'weekly',
+        recurrenceDays: [],
+        recurrenceEndDate: '',
+        recurrenceDuration: 1
       });
       setSelectionMode('group');
       loadData();
@@ -139,6 +180,13 @@ const TeacherDashboard = () => {
     return now >= startTime && now < endTime;
   };
 
+  const isClassUpcoming = (classItem) => {
+    const scheduledTime = new Date(classItem.scheduledTime);
+    const startTime = new Date(scheduledTime.getTime() - 5 * 60000);
+    const now = new Date();
+    return now < startTime;
+  };
+
   // Helper to get class status and end time
   const getClassStatus = (classItem) => {
     const scheduledTime = new Date(classItem.scheduledTime);
@@ -163,14 +211,48 @@ const TeacherDashboard = () => {
       <div className="dashboard">
         <div className="dashboard-header">
           <h1 className="dashboard-title">Teacher Dashboard</h1>
-          <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-            <FiPlus /> Create New Class
-          </button>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="view-toggle">
+              <button 
+                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setViewMode('list')}
+              >
+                <FiCalendar /> List View
+              </button>
+              <button 
+                className={`btn btn-sm ${viewMode === 'calendar' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setViewMode('calendar')}
+              >
+                <FiCalendar /> Calendar
+              </button>
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+              <FiPlus /> Create New Class
+            </button>
+          </div>
         </div>
 
         {/* Dashboard Grid */}
         <div className="dashboard-grid">
           <div className="dashboard-main">
+            {viewMode === 'calendar' ? (
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">
+                    <FiCalendar /> Class Calendar
+                  </h2>
+                </div>
+                <ClassCalendar 
+                  classes={classes} 
+                  onClassClick={(classItem) => {
+                    if (isClassActive(classItem) || isClassUpcoming(classItem)) {
+                      handleJoinClass(classItem._id);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <>
             {/* Active Classes */}
             <div className="card">
               <div className="card-header">
@@ -253,6 +335,8 @@ const TeacherDashboard = () => {
                 </div>
               )}
             </div>
+              </>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -264,13 +348,13 @@ const TeacherDashboard = () => {
         {/* Create Class Modal */}
         {showModal && (
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Create New Class</h2>
                 <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
               </div>
               <form onSubmit={handleSubmit}>
-                <div className="modal-body">
+                <div className="modal-body modal-body-scroll">
                   <div className="form-group">
                     <label className="form-label">Class Title</label>
                     <input
@@ -389,6 +473,107 @@ const TeacherDashboard = () => {
                         Selected: {formData.studentIds?.length || 0} students
                       </small>
                     </div>
+                  )}
+
+                  {/* Recurrence Options */}
+                  <div className="form-group" style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid var(--gray-200)' }}>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '15px', fontWeight: '600' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.isRecurring}
+                        onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked })}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                      />
+                      <FiRepeat style={{ color: 'var(--primary)' }} />
+                      <span>Make this a recurring class</span>
+                    </label>
+                    <small className="form-hint" style={{ display: 'block', marginTop: '8px' }}>
+                      Create multiple class instances automatically based on your schedule
+                    </small>
+                  </div>
+
+                  {formData.isRecurring && (
+                    <>
+                      <div className="form-group">
+                        <label className="form-label">Recurrence Pattern</label>
+                        <select
+                          name="recurrencePattern"
+                          className="form-input"
+                          value={formData.recurrencePattern}
+                          onChange={handleChange}
+                        >
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="custom">Custom Days (e.g., MWF)</option>
+                        </select>
+                      </div>
+
+                      {formData.recurrencePattern === 'custom' && (
+                        <div className="form-group">
+                          <label className="form-label">Select Days</label>
+                          <div className="days-selection">
+                            {[
+                              { value: 0, label: 'Sun' },
+                              { value: 1, label: 'Mon' },
+                              { value: 2, label: 'Tue' },
+                              { value: 3, label: 'Wed' },
+                              { value: 4, label: 'Thu' },
+                              { value: 5, label: 'Fri' },
+                              { value: 6, label: 'Sat' }
+                            ].map(day => (
+                              <label key={day.value} className="day-checkbox">
+                                <input
+                                  type="checkbox"
+                                  checked={formData.recurrenceDays.includes(day.value)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFormData({
+                                        ...formData,
+                                        recurrenceDays: [...formData.recurrenceDays, day.value]
+                                      });
+                                    } else {
+                                      setFormData({
+                                        ...formData,
+                                        recurrenceDays: formData.recurrenceDays.filter(d => d !== day.value)
+                                      });
+                                    }
+                                  }}
+                                />
+                                <span>{day.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Duration (Months)</label>
+                          <select
+                            name="recurrenceDuration"
+                            className="form-input"
+                            value={formData.recurrenceDuration}
+                            onChange={handleChange}
+                          >
+                            <option value={1}>1 Month</option>
+                            <option value={3}>3 Months</option>
+                            <option value={6}>6 Months</option>
+                          </select>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Or End Date (Optional)</label>
+                          <input
+                            type="date"
+                            name="recurrenceEndDate"
+                            className="form-input"
+                            value={formData.recurrenceEndDate}
+                            onChange={handleChange}
+                            min={formData.scheduledTime ? formData.scheduledTime.split('T')[0] : ''}
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
 

@@ -45,6 +45,30 @@ const classSchema = new mongoose.Schema({
   meetingLink: {
     type: String,
     required: true
+  },
+  // Recurrence fields
+  isRecurring: {
+    type: Boolean,
+    default: false
+  },
+  recurrencePattern: {
+    type: String,
+    enum: ['daily', 'weekly', 'monthly', 'custom'],
+    default: null
+  },
+  recurrenceDays: [{
+    type: Number, // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  }],
+  recurrenceEndDate: {
+    type: Date
+  },
+  recurrenceDuration: {
+    type: Number, // in months
+  },
+  parentClassId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class',
+    default: null
   }
 }, {
   timestamps: true

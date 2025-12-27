@@ -18,7 +18,7 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:3001',
       process.env.FRONTEND_URL
-    ];
+    ];  
     
     // In development, allow all origins
     if (process.env.NODE_ENV !== 'production') {
