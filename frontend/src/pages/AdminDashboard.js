@@ -3,11 +3,10 @@ import Layout from '../components/Layout';
 import { adminService } from '../services/adminService';
 import { userService } from '../services/userService';
 import { classService } from '../services/classService';
-import { groupService } from '../services/groupService';
 import { 
   FiUsers, FiBook, FiCalendar, FiPlus, FiVideo, FiMessageCircle,
   FiSearch, FiFilter, FiDownload, FiUpload, FiX, FiCheck, FiAlertCircle,
-  FiUserCheck, FiBookOpen, FiLayers, FiTrash2, FiEdit
+  FiUserCheck, FiBookOpen
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -26,32 +25,17 @@ const AdminDashboard = () => {
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
-  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Search states
   const [teacherSearch, setTeacherSearch] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [classSearch, setClassSearch] = useState('');
-  const [groupSearch, setGroupSearch] = useState('');
   
   // Filter states
   const [teacherFilter, setTeacherFilter] = useState('all');
   const [studentFilter, setStudentFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
-  const [groupFilter, setGroupFilter] = useState('all');
-  
-  // Group modal states
-  const [showGroupModal, setShowGroupModal] = useState(false);
-  const [editingGroup, setEditingGroup] = useState(null);
-  const [groupFormData, setGroupFormData] = useState({
-    name: '',
-    description: '',
-    teacher: '',
-    students: []
-  });
-  const [groupError, setGroupError] = useState('');
-  const [groupLoading, setGroupLoading] = useState(false);
   
   // Import/Export states
   const [importType, setImportType] = useState('');
@@ -101,19 +85,17 @@ const AdminDashboard = () => {
 
   const loadData = async () => {
     try {
-      const [statsRes, teachersRes, studentsRes, classesRes, groupsRes] = await Promise.all([
+      const [statsRes, teachersRes, studentsRes, classesRes] = await Promise.all([
         adminService.getStats(),
         userService.getTeachers(),
         userService.getStudents(),
-        classService.getClasses(),
-        groupService.getGroups()
+        classService.getClasses()
       ]);
 
       setStats(statsRes.stats);
       setTeachers(teachersRes.teachers);
       setStudents(studentsRes.students);
       setClasses(classesRes.classes);
-      setGroups(groupsRes.groups || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -142,68 +124,10 @@ const AdminDashboard = () => {
     return matchesSearch && matchesFilter;
   });
 
-  // Class status helpers (must be defined before filteredClasses)
-  const getClassEndTime = (classItem) => {
-    const startTime = new Date(classItem.scheduledTime);
-    return new Date(startTime.getTime() + (classItem.duration || 60) * 60 * 1000);
-  };
-
-  const isClassActive = (classItem) => {
-    const now = new Date();
-    const startTime = new Date(classItem.scheduledTime);
-    const endTime = getClassEndTime(classItem);
-    const earlyJoinWindow = 5 * 60 * 1000; // 5 minutes before
-    return now >= new Date(startTime.getTime() - earlyJoinWindow) && now <= endTime;
-  };
-
-  const isClassUpcoming = (classItem) => {
-    const now = new Date();
-    const startTime = new Date(classItem.scheduledTime);
-    const earlyJoinWindow = 5 * 60 * 1000;
-    return now < new Date(startTime.getTime() - earlyJoinWindow);
-  };
-
-  const isClassPast = (classItem) => {
-    const now = new Date();
-    const endTime = getClassEndTime(classItem);
-    return now > endTime;
-  };
-
-  const getClassStatusLabel = (classItem) => {
-    if (isClassPast(classItem)) return 'completed';
-    if (isClassActive(classItem)) return 'ongoing';
-    return 'scheduled';
-  };
-
   const filteredClasses = classes.filter(classItem => {
     const matchesSearch = classItem.title.toLowerCase().includes(classSearch.toLowerCase()) ||
                           classItem.teacher?.name.toLowerCase().includes(classSearch.toLowerCase());
-    
-    // Dynamic status based on time
-    const dynamicStatus = getClassStatusLabel(classItem);
-    
-    let matchesFilter = false;
-    if (classFilter === 'all') {
-      matchesFilter = true;
-    } else if (classFilter === 'active') {
-      matchesFilter = isClassActive(classItem);
-    } else if (classFilter === 'upcoming') {
-      matchesFilter = isClassUpcoming(classItem);
-    } else if (classFilter === 'past') {
-      matchesFilter = isClassPast(classItem);
-    } else {
-      matchesFilter = dynamicStatus === classFilter;
-    }
-    
-    return matchesSearch && matchesFilter;
-  });
-
-  const filteredGroups = groups.filter(group => {
-    const matchesSearch = group.name.toLowerCase().includes(groupSearch.toLowerCase()) ||
-                          group.teacher?.name?.toLowerCase().includes(groupSearch.toLowerCase());
-    const matchesFilter = groupFilter === 'all' || 
-                          (groupFilter === 'active' && group.isActive) ||
-                          (groupFilter === 'inactive' && !group.isActive);
+    const matchesFilter = classFilter === 'all' || classItem.status === classFilter;
     return matchesSearch && matchesFilter;
   });
 
@@ -407,84 +331,6 @@ const AdminDashboard = () => {
     navigate(`/classroom/${classId}`);
   };
 
-  // Group management functions
-  const handleOpenGroupModal = (group = null) => {
-    if (group) {
-      setEditingGroup(group);
-      setGroupFormData({
-        name: group.name,
-        description: group.description || '',
-        teacher: group.teacher?._id || '',
-        students: group.students?.map(s => s._id) || []
-      });
-    } else {
-      setEditingGroup(null);
-      setGroupFormData({
-        name: '',
-        description: '',
-        teacher: '',
-        students: []
-      });
-    }
-    setGroupError('');
-    setShowGroupModal(true);
-  };
-
-  const handleGroupFormChange = (e) => {
-    const { name, value } = e.target;
-    setGroupFormData(prev => ({ ...prev, [name]: value }));
-    setGroupError('');
-  };
-
-  const handleStudentSelect = (studentId) => {
-    setGroupFormData(prev => {
-      const students = prev.students.includes(studentId)
-        ? prev.students.filter(id => id !== studentId)
-        : [...prev.students, studentId];
-      return { ...prev, students };
-    });
-  };
-
-  const handleSaveGroup = async (e) => {
-    e.preventDefault();
-    setGroupError('');
-    setGroupLoading(true);
-
-    try {
-      if (editingGroup) {
-        await groupService.updateGroup(editingGroup._id, groupFormData);
-      } else {
-        await groupService.createGroup(groupFormData);
-      }
-      setShowGroupModal(false);
-      await loadData();
-    } catch (error) {
-      setGroupError(error.response?.data?.message || 'Failed to save group');
-    } finally {
-      setGroupLoading(false);
-    }
-  };
-
-  const handleDeleteGroup = async (groupId) => {
-    if (!window.confirm('Are you sure you want to delete this group?')) return;
-    
-    try {
-      await groupService.deleteGroup(groupId);
-      await loadData();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to delete group');
-    }
-  };
-
-  const handleToggleGroupStatus = async (groupId, currentStatus) => {
-    try {
-      await groupService.updateGroup(groupId, { isActive: !currentStatus });
-      await loadData();
-    } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update group status');
-    }
-  };
-
   const openImportModal = (type) => {
     setImportType(type);
     setShowImportModal(true);
@@ -557,16 +403,6 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          <div className="stat-card" onClick={() => setActiveTab('groups')}>
-            <div className="stat-icon">
-              <FiLayers />
-            </div>
-            <div className="stat-info">
-              <h3>{groups.length}</h3>
-              <p>Groups</p>
-            </div>
-          </div>
-
           <div className="stat-card">
             <div className="stat-icon">
               <FiCalendar />
@@ -604,14 +440,6 @@ const AdminDashboard = () => {
               <FiBookOpen />
               <span>Classes</span>
               <span className="tab-count">{classes.length}</span>
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'groups' ? 'active' : ''}`}
-              onClick={() => setActiveTab('groups')}
-            >
-              <FiLayers />
-              <span>Groups</span>
-              <span className="tab-count">{groups.length}</span>
             </button>
           </div>
 
@@ -859,9 +687,10 @@ const AdminDashboard = () => {
                     <FiFilter />
                     <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
                       <option value="all">All Status</option>
-                      <option value="active">Active Now</option>
-                      <option value="upcoming">Upcoming</option>
-                      <option value="past">Past Classes</option>
+                      <option value="scheduled">Scheduled</option>
+                      <option value="ongoing">Ongoing</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
                   <div className="results-count">
@@ -877,167 +706,40 @@ const AdminDashboard = () => {
                     </div>
                   ) : (
                     <div className="classes-grid">
-                      {filteredClasses.map((classItem) => {
-                        const dynamicStatus = getClassStatusLabel(classItem);
-                        const canJoin = isClassActive(classItem) || isClassUpcoming(classItem);
-                        const isPast = isClassPast(classItem);
-                        
-                        return (
-                          <div key={classItem._id} className={`class-card ${isPast ? 'class-card-past' : ''}`}>
-                            <h3>{classItem.title}</h3>
-                            {classItem.description && (
-                              <p className="class-description">{classItem.description}</p>
-                            )}
-                            <div className="class-meta">
-                              <p className="class-teacher">
-                                <FiUserCheck /> {classItem.teacher?.name}
-                              </p>
-                              <p className="class-time">
-                                <FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}
-                              </p>
-                              <p className="class-students">
-                                <FiUsers /> {classItem.students?.length || 0} students
-                              </p>
-                            </div>
-                            <div className="class-status">
-                              <span className={`badge badge-${dynamicStatus}`}>
-                                {dynamicStatus === 'ongoing' ? 'LIVE NOW' : dynamicStatus.toUpperCase()}
-                              </span>
-                            </div>
-                            <div className="class-actions">
-                              {canJoin ? (
-                                <button
-                                  className="btn btn-primary"
-                                  onClick={() => handleJoinClass(classItem._id)}
-                                >
-                                  <FiVideo /> Join Class
-                                </button>
-                              ) : (
-                                <button className="btn btn-secondary" disabled>
-                                  Class Ended
-                                </button>
-                              )}
-                            </div>
+                      {filteredClasses.map((classItem) => (
+                        <div key={classItem._id} className="class-card">
+                          <h3>{classItem.title}</h3>
+                          {classItem.description && (
+                            <p className="class-description">{classItem.description}</p>
+                          )}
+                          <div className="class-meta">
+                            <p className="class-teacher">
+                              <FiUserCheck /> {classItem.teacher?.name}
+                            </p>
+                            <p className="class-time">
+                              <FiCalendar /> {format(new Date(classItem.scheduledTime), 'MMM d, yyyy • h:mm a')}
+                            </p>
+                            <p className="class-students">
+                              <FiUsers /> {classItem.students?.length || 0} students
+                            </p>
                           </div>
-                        );
-                      })}
+                          <div className="class-status">
+                            <span className={`badge badge-${classItem.status}`}>
+                              {classItem.status}
+                            </span>
+                          </div>
+                          <div className="class-actions">
+                            <button
+                              className="btn btn-primary"
+                              onClick={() => handleJoinClass(classItem._id)}
+                            >
+                              <FiVideo /> Join Class
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* Groups Tab */}
-            {activeTab === 'groups' && (
-              <div className="tab-panel">
-                <div className="panel-header">
-                  <div className="panel-title">
-                    <h2>Groups Management</h2>
-                    <p>Create and manage groups (1 teacher + multiple students)</p>
-                  </div>
-                  <div className="panel-actions">
-                    <button className="btn btn-primary" onClick={() => handleOpenGroupModal()}>
-                      <FiPlus /> Create Group
-                    </button>
-                  </div>
-                </div>
-
-                <div className="table-toolbar">
-                  <div className="search-box">
-                    <FiSearch />
-                    <input
-                      type="text"
-                      placeholder="Search groups..."
-                      value={groupSearch}
-                      onChange={(e) => setGroupSearch(e.target.value)}
-                    />
-                    {groupSearch && (
-                      <button className="clear-search" onClick={() => setGroupSearch('')}>
-                        <FiX />
-                      </button>
-                    )}
-                  </div>
-                  <div className="filter-box">
-                    <FiFilter />
-                    <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)}>
-                      <option value="all">All Groups</option>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </div>
-                  <span className="results-count">
-                    Showing {filteredGroups.length} of {groups.length} groups
-                  </span>
-                </div>
-
-                <div className="table-container">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Group Name</th>
-                        <th>Teacher</th>
-                        <th>Students</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredGroups.length === 0 ? (
-                        <tr>
-                          <td colSpan="5" className="empty-table">
-                            <FiLayers className="empty-icon" />
-                            <p>No groups found</p>
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredGroups.map((group) => (
-                          <tr key={group._id}>
-                            <td className="td-name">
-                              {group.name}
-                              {group.description && (
-                                <small className="group-desc">{group.description}</small>
-                              )}
-                            </td>
-                            <td>{group.teacher?.name || '-'}</td>
-                            <td>
-                              <span className="student-count-badge">
-                                {group.students?.length || 0} students
-                              </span>
-                            </td>
-                            <td>
-                              <span className={`badge ${group.isActive ? 'badge-ongoing' : 'badge-cancelled'}`}>
-                                {group.isActive ? 'Active' : 'Inactive'}
-                              </span>
-                            </td>
-                            <td>
-                              <div className="action-buttons">
-                                <button
-                                  className="btn btn-sm btn-secondary"
-                                  onClick={() => handleOpenGroupModal(group)}
-                                  title="Edit"
-                                >
-                                  <FiEdit />
-                                </button>
-                                <button
-                                  className={`btn btn-sm ${group.isActive ? 'btn-danger' : 'btn-success'}`}
-                                  onClick={() => handleToggleGroupStatus(group._id, group.isActive)}
-                                >
-                                  {group.isActive ? 'Deactivate' : 'Activate'}
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-danger"
-                                  onClick={() => handleDeleteGroup(group._id)}
-                                  title="Delete"
-                                >
-                                  <FiTrash2 />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
                 </div>
               </div>
             )}
@@ -1431,110 +1133,6 @@ const AdminDashboard = () => {
                   </button>
                 )}
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Group Modal */}
-        {showGroupModal && (
-          <div className="modal-overlay" onClick={() => setShowGroupModal(false)}>
-            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h2>{editingGroup ? 'Edit Group' : 'Create New Group'}</h2>
-                <button className="modal-close" onClick={() => setShowGroupModal(false)}>×</button>
-              </div>
-              
-              <form onSubmit={handleSaveGroup}>
-                <div className="modal-body modal-body-scroll">
-                  {groupError && <div className="alert alert-error">{groupError}</div>}
-
-                  <div className="form-group">
-                    <label className="form-label">Group Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      className="form-input"
-                      placeholder="e.g. Math Class A"
-                      value={groupFormData.name}
-                      onChange={handleGroupFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-input"
-                      placeholder="Optional description"
-                      value={groupFormData.description}
-                      onChange={handleGroupFormChange}
-                      rows={2}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Select Teacher *</label>
-                    <select
-                      name="teacher"
-                      className="form-input"
-                      value={groupFormData.teacher}
-                      onChange={handleGroupFormChange}
-                      required
-                    >
-                      <option value="">-- Select Teacher --</option>
-                      {teachers.filter(t => t.isActive).map(teacher => (
-                        <option key={teacher._id} value={teacher._id}>
-                          {teacher.name} ({teacher.email})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Select Students</label>
-                    <div className="students-selection-list">
-                      {students.filter(s => s.isActive).length === 0 ? (
-                        <p className="no-students-text">No active students available</p>
-                      ) : (
-                        students.filter(s => s.isActive).map(student => (
-                          <label key={student._id} className="student-checkbox">
-                            <input
-                              type="checkbox"
-                              checked={groupFormData.students.includes(student._id)}
-                              onChange={() => handleStudentSelect(student._id)}
-                            />
-                            <span className="student-info">
-                              <strong>{student.name}</strong>
-                              <small>{student.grade || ''} {student.school ? `- ${student.school}` : ''}</small>
-                            </span>
-                          </label>
-                        ))
-                      )}
-                    </div>
-                    <small className="form-hint">
-                      Selected: {groupFormData.students.length} students
-                    </small>
-                  </div>
-                </div>
-
-                <div className="modal-actions">
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary" 
-                    onClick={() => setShowGroupModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary"
-                    disabled={groupLoading}
-                  >
-                    {groupLoading ? 'Saving...' : (editingGroup ? 'Update Group' : 'Create Group')}
-                  </button>
-                </div>
-              </form>
             </div>
           </div>
         )}

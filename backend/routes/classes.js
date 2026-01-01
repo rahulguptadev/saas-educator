@@ -2,9 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Class = require('../models/Class');
 const User = require('../models/User');
-const Group = require('../models/Group');
 const { protect, authorize } = require('../middleware/auth');
-const { generateRecurringClasses, generateJitsiRoom } = require('../utils/recurrence');
 
 const router = express.Router();
 
@@ -22,143 +20,41 @@ router.post('/', protect, authorize('teacher'), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { 
-      title, 
-      description, 
-      scheduledTime, 
-      duration, 
-      studentIds, 
-      groupId,
-      // Recurrence options
-      isRecurring,
-      recurrencePattern,
-      recurrenceDays,
-      recurrenceEndDate,
-      recurrenceDuration
-    } = req.body;
+    const { title, description, scheduledTime, duration, studentIds } = req.body;
 
-    let finalStudentIds = [];
-    let groupRef = null;
-
-    // Validation: Must have either groupId or at least one student
-    if (!groupId && (!studentIds || studentIds.length === 0)) {
-      return res.status(400).json({ 
-        message: 'Please select either a group or at least one student' 
-      });
-    }
-
-    // If groupId is provided, get students from the group
-    if (groupId) {
-      const group = await Group.findById(groupId);
-      
-      if (!group) {
-        return res.status(400).json({ message: 'Group not found' });
-      }
-      
-      // Verify the teacher belongs to this group
-      if (group.teacher.toString() !== req.user._id.toString()) {
-        return res.status(403).json({ message: 'You can only create classes for your own groups' });
-      }
-      
-      finalStudentIds = group.students;
-      groupRef = groupId;
-    } else if (studentIds && studentIds.length > 0) {
-      // Verify students exist and belong to teacher's groups
-      const teacherGroups = await Group.find({ teacher: req.user._id, isActive: true });
-      const allowedStudentIds = new Set();
-      teacherGroups.forEach(g => {
-        g.students.forEach(s => allowedStudentIds.add(s.toString()));
+    // Verify students exist
+    if (studentIds && studentIds.length > 0) {
+      const students = await User.find({ 
+        _id: { $in: studentIds }, 
+        role: 'student' 
       });
       
-      // Check if all selected students are from teacher's groups
-      const invalidStudents = studentIds.filter(id => !allowedStudentIds.has(id.toString()));
-      if (invalidStudents.length > 0) {
-        return res.status(403).json({ 
-          message: 'You can only add students from your assigned groups' 
-        });
+      if (students.length !== studentIds.length) {
+        return res.status(400).json({ message: 'Some students not found' });
       }
-      
-      finalStudentIds = studentIds;
     }
 
-    const baseClassData = {
+    // Generate Jitsi room name and meeting link
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 9);
+    const jitsiRoomName = `class-${timestamp}-${random}`;
+    const meetingLink = `https://meet.jit.si/${jitsiRoomName}`;
+
+    const newClass = await Class.create({
       title,
       description,
       teacher: req.user._id,
-      group: groupRef,
-      students: finalStudentIds,
+      students: studentIds || [],
+      scheduledTime: new Date(scheduledTime),
       duration: duration || 60,
-      status: 'scheduled', // Always set to scheduled for new classes
-      isRecurring: isRecurring || false,
-      recurrencePattern: isRecurring ? recurrencePattern : null,
-      recurrenceDays: isRecurring && recurrenceDays ? recurrenceDays : [],
-      recurrenceEndDate: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate) : null,
-      recurrenceDuration: isRecurring && recurrenceDuration ? recurrenceDuration : null
-    };
+      jitsiRoomName,
+      meetingLink
+    });
 
-    // If recurring, generate all class instances
-    if (isRecurring && recurrencePattern) {
-      const classesToCreate = generateRecurringClasses(baseClassData, {
-        recurrencePattern,
-        recurrenceDays: recurrenceDays || [],
-        recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null,
-        recurrenceDuration: recurrenceDuration || 1,
-        startTime: scheduledTime
-      });
+    await newClass.populate('teacher', 'name email');
+    await newClass.populate('students', 'name avatar');
 
-      // Safety check: limit number of classes
-      if (classesToCreate.length === 0) {
-        return res.status(400).json({ 
-          message: 'No classes generated. Please check your recurrence settings.' 
-        });
-      }
-
-      if (classesToCreate.length > 500) {
-        return res.status(400).json({ 
-          message: `Too many classes would be created (${classesToCreate.length}). Please reduce the duration or use a more specific end date. Maximum 500 classes allowed.` 
-        });
-      }
-
-      // Generate unique Jitsi rooms for each class
-      const classesWithRooms = classesToCreate.map(classData => {
-        const { jitsiRoomName, meetingLink } = generateJitsiRoom();
-        return {
-          ...classData,
-          jitsiRoomName,
-          meetingLink
-        };
-      });
-
-      // Create all classes
-      const createdClasses = await Class.insertMany(classesWithRooms);
-      
-      // Populate the first class for response
-      await createdClasses[0].populate('teacher', 'name email');
-      await createdClasses[0].populate('students', 'name avatar');
-      await createdClasses[0].populate('group', 'name');
-
-      res.status(201).json({ 
-        message: `Created ${createdClasses.length} recurring classes`,
-        classes: createdClasses,
-        count: createdClasses.length
-      });
-    } else {
-      // Single class creation
-      const { jitsiRoomName, meetingLink } = generateJitsiRoom();
-      
-      const newClass = await Class.create({
-        ...baseClassData,
-        scheduledTime: new Date(scheduledTime),
-        jitsiRoomName,
-        meetingLink
-      });
-
-      await newClass.populate('teacher', 'name email');
-      await newClass.populate('students', 'name avatar');
-      await newClass.populate('group', 'name');
-
-      res.status(201).json({ class: newClass });
-    }
+    res.status(201).json({ class: newClass });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
@@ -175,17 +71,14 @@ router.get('/', protect, async (req, res) => {
       classes = await Class.find()
         .populate('teacher', 'name email')
         .populate('students', 'name avatar')
-        .populate('group', 'name')
         .sort({ scheduledTime: -1 });
     } else if (req.user.role === 'teacher') {
       classes = await Class.find({ teacher: req.user._id })
         .populate('students', 'name avatar')
-        .populate('group', 'name')
         .sort({ scheduledTime: -1 });
     } else if (req.user.role === 'student') {
       classes = await Class.find({ students: req.user._id })
         .populate('teacher', 'name email')
-        .populate('group', 'name')
         .sort({ scheduledTime: -1 });
     }
 
@@ -202,8 +95,7 @@ router.get('/:id', protect, async (req, res) => {
   try {
     const classItem = await Class.findById(req.params.id)
       .populate('teacher', 'name email')
-      .populate('students', 'name avatar')
-      .populate('group', 'name');
+      .populate('students', 'name avatar');
 
     if (!classItem) {
       return res.status(404).json({ message: 'Class not found' });

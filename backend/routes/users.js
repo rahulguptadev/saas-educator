@@ -160,57 +160,45 @@ router.get('/teachers', protect, authorize('admin'), async (req, res) => {
 });
 
 // @route   GET /api/users/available
-// @desc    Get all users available for chatting (group-based visibility)
+// @desc    Get all users available for chatting (role-based)
 // @access  Private
 router.get('/available', protect, async (req, res) => {
   try {
-    let users = [];
-    const Group = require('../models/Group');
+    let users;
 
     if (req.user.role === 'admin') {
       // Admins can see all users
       users = await User.find({ _id: { $ne: req.user._id }, isActive: true })
         .select('name email avatar role');
     } else if (req.user.role === 'teacher') {
-      // Teachers can only see students from their groups
-      const teacherGroups = await Group.find({ teacher: req.user._id, isActive: true })
-        .populate('students', 'name avatar role');
+      // Teachers can see students and other teachers
+      // Get all users first, then filter out email for students
+      const allUsers = await User.find({
+        _id: { $ne: req.user._id },
+        isActive: true,
+        role: { $in: ['student', 'teacher'] }
+      })
+        .select('name avatar role email phone');
       
-      // Collect unique students from all groups
-      const studentMap = new Map();
-      teacherGroups.forEach(group => {
-        group.students.forEach(student => {
-          if (student.isActive !== false && !studentMap.has(student._id.toString())) {
-            studentMap.set(student._id.toString(), {
-              _id: student._id,
-              name: student.name,
-              avatar: student.avatar,
-              role: student.role
-            });
-          }
-        });
-      });
-      
-      users = Array.from(studentMap.values());
-    } else if (req.user.role === 'student') {
-      // Students can only see teachers from their groups
-      const studentGroups = await Group.find({ students: req.user._id, isActive: true })
-        .populate('teacher', 'name avatar role');
-      
-      // Collect unique teachers from all groups
-      const teacherMap = new Map();
-      studentGroups.forEach(group => {
-        if (group.teacher && group.teacher.isActive !== false && !teacherMap.has(group.teacher._id.toString())) {
-          teacherMap.set(group.teacher._id.toString(), {
-            _id: group.teacher._id,
-            name: group.teacher.name,
-            avatar: group.teacher.avatar,
-            role: group.teacher.role
-          });
+      // Hide email and phone from students for teachers
+      users = allUsers.map(u => {
+        const userObj = u.toObject();
+        if (userObj.role === 'student') {
+          delete userObj.email;
+          delete userObj.phone;
         }
+        return userObj;
       });
-      
-      users = Array.from(teacherMap.values());
+    } else if (req.user.role === 'student') {
+      // Students can see teachers and other students
+      users = await User.find({
+        _id: { $ne: req.user._id },
+        isActive: true,
+        role: { $in: ['student', 'teacher'] }
+      })
+        .select('name avatar role');
+    } else {
+      users = [];
     }
 
     res.json({ users });
