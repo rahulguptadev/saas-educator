@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Class = require('../models/Class');
 const User = require('../models/User');
+const Group = require('../models/Group');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -20,10 +21,34 @@ router.post('/', protect, authorize('teacher'), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, scheduledTime, duration, studentIds } = req.body;
+    const { title, description, scheduledTime, duration, studentIds, groupId } = req.body;
 
-    // Verify students exist
-    if (studentIds && studentIds.length > 0) {
+    let finalStudentIds = [];
+    let groupRef = null;
+
+    // Validate that either a group or students are selected
+    if (!groupId && (!studentIds || studentIds.length === 0)) {
+      return res.status(400).json({ message: 'Please select a group or at least one student' });
+    }
+
+    // If group is selected, get students from group (filter only students, not teachers)
+    if (groupId) {
+      const group = await Group.findOne({ 
+        _id: groupId, 
+        isActive: true 
+      }).populate('members', 'role');
+      
+      if (!group) {
+        return res.status(404).json({ message: 'Group not found' });
+      }
+      
+      groupRef = group._id;
+      // Filter only students from group members
+      finalStudentIds = group.members
+        .filter(m => m.role === 'student')
+        .map(m => m._id.toString());
+    } else if (studentIds && studentIds.length > 0) {
+      // Verify students exist
       const students = await User.find({ 
         _id: { $in: studentIds }, 
         role: 'student' 
@@ -32,6 +57,8 @@ router.post('/', protect, authorize('teacher'), [
       if (students.length !== studentIds.length) {
         return res.status(400).json({ message: 'Some students not found' });
       }
+      
+      finalStudentIds = studentIds;
     }
 
     // Generate Jitsi room name and meeting link
@@ -44,7 +71,8 @@ router.post('/', protect, authorize('teacher'), [
       title,
       description,
       teacher: req.user._id,
-      students: studentIds || [],
+      students: finalStudentIds,
+      group: groupRef,
       scheduledTime: new Date(scheduledTime),
       duration: duration || 60,
       jitsiRoomName,
@@ -53,6 +81,7 @@ router.post('/', protect, authorize('teacher'), [
 
     await newClass.populate('teacher', 'name email');
     await newClass.populate('students', 'name avatar');
+    await newClass.populate('group', 'name');
 
     res.status(201).json({ class: newClass });
   } catch (error) {
@@ -71,14 +100,17 @@ router.get('/', protect, async (req, res) => {
       classes = await Class.find()
         .populate('teacher', 'name email')
         .populate('students', 'name avatar')
+        .populate('group', 'name')
         .sort({ scheduledTime: -1 });
     } else if (req.user.role === 'teacher') {
       classes = await Class.find({ teacher: req.user._id })
         .populate('students', 'name avatar')
+        .populate('group', 'name')
         .sort({ scheduledTime: -1 });
     } else if (req.user.role === 'student') {
       classes = await Class.find({ students: req.user._id })
         .populate('teacher', 'name email')
+        .populate('group', 'name')
         .sort({ scheduledTime: -1 });
     }
 
@@ -95,7 +127,8 @@ router.get('/:id', protect, async (req, res) => {
   try {
     const classItem = await Class.findById(req.params.id)
       .populate('teacher', 'name email')
-      .populate('students', 'name avatar');
+      .populate('students', 'name avatar')
+      .populate('group', 'name');
 
     if (!classItem) {
       return res.status(404).json({ message: 'Class not found' });
@@ -160,6 +193,7 @@ router.put('/:id', protect, authorize('teacher', 'admin'), [
     await classItem.save();
     await classItem.populate('teacher', 'name email');
     await classItem.populate('students', 'name avatar');
+    await classItem.populate('group', 'name');
 
     res.json({ class: classItem });
   } catch (error) {
@@ -209,6 +243,7 @@ router.post('/:id/join', protect, authorize('student'), async (req, res) => {
 
     await classItem.populate('teacher', 'name email');
     await classItem.populate('students', 'name avatar');
+    await classItem.populate('group', 'name');
 
     res.json({ class: classItem });
   } catch (error) {

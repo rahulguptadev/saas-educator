@@ -3,10 +3,11 @@ import Layout from '../components/Layout';
 import { adminService } from '../services/adminService';
 import { userService } from '../services/userService';
 import { classService } from '../services/classService';
+import { groupService } from '../services/groupService';
 import { 
   FiUsers, FiBook, FiCalendar, FiPlus, FiVideo, FiMessageCircle,
   FiSearch, FiFilter, FiDownload, FiUpload, FiX, FiCheck, FiAlertCircle,
-  FiUserCheck, FiBookOpen
+  FiUserCheck, FiBookOpen, FiEdit2, FiTrash2
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -25,6 +26,7 @@ const AdminDashboard = () => {
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // Search states
@@ -69,6 +71,15 @@ const AdminDashboard = () => {
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
   
+  // Group management states
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [groupFormData, setGroupFormData] = useState({
+    name: '',
+    description: '',
+    memberIds: []
+  });
+  
   // Grade and Subject options
   const gradeOptions = [
     '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th', '9th', '10th', '11th', '12th',
@@ -85,19 +96,63 @@ const AdminDashboard = () => {
 
   const loadData = async () => {
     try {
-      const [statsRes, teachersRes, studentsRes, classesRes] = await Promise.all([
+      // Load data with individual error handling so one failure doesn't block others
+      const results = await Promise.allSettled([
         adminService.getStats(),
         userService.getTeachers(),
         userService.getStudents(),
-        classService.getClasses()
+        classService.getClasses(),
+        groupService.getGroups()
       ]);
 
-      setStats(statsRes.stats);
-      setTeachers(teachersRes.teachers);
-      setStudents(studentsRes.students);
-      setClasses(classesRes.classes);
+      // Handle stats
+      if (results[0].status === 'fulfilled') {
+        setStats(results[0].value.stats);
+      } else {
+        console.error('Error loading stats:', results[0].reason);
+      }
+
+      // Handle teachers
+      if (results[1].status === 'fulfilled') {
+        setTeachers(results[1].value.teachers || []);
+      } else {
+        console.error('Error loading teachers:', results[1].reason);
+        setTeachers([]);
+      }
+
+      // Handle students
+      if (results[2].status === 'fulfilled') {
+        setStudents(results[2].value.students || []);
+      } else {
+        console.error('Error loading students:', results[2].reason);
+        setStudents([]);
+      }
+
+      // Handle classes
+      if (results[3].status === 'fulfilled') {
+        setClasses(results[3].value.classes || []);
+      } else {
+        console.error('Error loading classes:', results[3].reason);
+        setClasses([]);
+      }
+
+      // Handle groups
+      if (results[4].status === 'fulfilled') {
+        setGroups(results[4].value.groups || []);
+      } else {
+        console.error('Error loading groups:', results[4].reason);
+        setGroups([]);
+      }
+
+      console.log('Data loaded:', {
+        teachers: results[1].status === 'fulfilled' ? (results[1].value.teachers?.length || 0) : 'failed',
+        students: results[2].status === 'fulfilled' ? (results[2].value.students?.length || 0) : 'failed',
+        classes: results[3].status === 'fulfilled' ? (results[3].value.classes?.length || 0) : 'failed',
+        groups: results[4].status === 'fulfilled' ? (results[4].value.groups?.length || 0) : 'failed'
+      });
+
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Unexpected error loading data:', error);
     } finally {
       setLoading(false);
     }
@@ -441,6 +496,14 @@ const AdminDashboard = () => {
               <span>Classes</span>
               <span className="tab-count">{classes.length}</span>
             </button>
+            <button 
+              className={`tab-btn ${activeTab === 'groups' ? 'active' : ''}`}
+              onClick={() => setActiveTab('groups')}
+            >
+              <FiUsers />
+              <span>Groups</span>
+              <span className="tab-count">{groups.length}</span>
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -743,8 +806,206 @@ const AdminDashboard = () => {
                 </div>
               </div>
             )}
+
+            {/* Groups Tab */}
+            {activeTab === 'groups' && (
+              <div className="tab-panel">
+                <div className="panel-header">
+                  <div className="panel-title">
+                    <h2>Groups Management</h2>
+                    <p>Create and manage groups of students and teachers</p>
+                  </div>
+                  <div className="panel-actions">
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={() => {
+                        setEditingGroup(null);
+                        setGroupFormData({ name: '', description: '', memberIds: [] });
+                        setShowGroupModal(true);
+                      }}
+                    >
+                      <FiPlus /> Create Group
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="classes-grid-container">
+                  {groups.length === 0 ? (
+                    <div className="empty-classes">
+                      <FiUsers className="empty-icon" />
+                      <p>No groups created yet</p>
+                    </div>
+                  ) : (
+                    <div className="classes-grid">
+                      {groups.map((group) => (
+                        <div key={group._id} className="class-card">
+                          <h3>{group.name}</h3>
+                          {group.description && <p className="class-description">{group.description}</p>}
+                          <div className="class-meta">
+                            <p className="class-students">
+                              <FiUsers /> {group.members?.length || 0} members
+                            </p>
+                          </div>
+                          <div className="class-actions">
+                            <button 
+                              className="btn btn-secondary" 
+                              onClick={() => {
+                                setEditingGroup(group);
+                                setGroupFormData({
+                                  name: group.name,
+                                  description: group.description || '',
+                                  memberIds: group.members?.map(m => m._id) || []
+                                });
+                                setShowGroupModal(true);
+                              }}
+                            >
+                              <FiEdit2 /> Edit
+                            </button>
+                            <button 
+                              className="btn btn-danger" 
+                              onClick={async () => {
+                                if (window.confirm('Are you sure you want to delete this group?')) {
+                                  try {
+                                    await groupService.deleteGroup(group._id);
+                                    loadData();
+                                  } catch (error) {
+                                    alert('Failed to delete group');
+                                  }
+                                }
+                              }}
+                            >
+                              <FiTrash2 /> Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Group Management Modal */}
+        {showGroupModal && (
+          <div className="modal-overlay" onClick={() => setShowGroupModal(false)}>
+            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>{editingGroup ? 'Edit Group' : 'Create New Group'}</h2>
+                <button className="modal-close" onClick={() => setShowGroupModal(false)}>×</button>
+              </div>
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  if (!groupFormData.name.trim()) {
+                    alert('Group name is required');
+                    return;
+                  }
+                  if (!groupFormData.memberIds || groupFormData.memberIds.length === 0) {
+                    alert('Please select at least one member');
+                    return;
+                  }
+
+                  if (editingGroup) {
+                    await groupService.updateGroup(editingGroup._id, groupFormData);
+                  } else {
+                    await groupService.createGroup(groupFormData);
+                  }
+                  
+                  setShowGroupModal(false);
+                  setEditingGroup(null);
+                  setGroupFormData({ name: '', description: '', memberIds: [] });
+                  loadData();
+                } catch (error) {
+                  alert(error.response?.data?.message || 'Failed to save group');
+                }
+              }}>
+                <div className="modal-body modal-body-scroll">
+                  <div className="form-group">
+                    <label className="form-label">Group Name *</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={groupFormData.name}
+                      onChange={(e) => setGroupFormData({ ...groupFormData, name: e.target.value })}
+                      placeholder="Enter group name"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      className="form-textarea"
+                      value={groupFormData.description}
+                      onChange={(e) => setGroupFormData({ ...groupFormData, description: e.target.value })}
+                      placeholder="Enter group description (optional)"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Select Members (Students & Teachers) *</label>
+                    <div className="student-select" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                      {/* Teachers */}
+                      <div style={{ marginBottom: '16px' }}>
+                        <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Teachers</h4>
+                        {teachers.filter(t => t.isActive).map((teacher) => (
+                          <label key={teacher._id} className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={groupFormData.memberIds?.includes(teacher._id)}
+                              onChange={(e) => {
+                                const memberIds = groupFormData.memberIds || [];
+                                if (e.target.checked) {
+                                  setGroupFormData({ ...groupFormData, memberIds: [...memberIds, teacher._id] });
+                                } else {
+                                  setGroupFormData({ ...groupFormData, memberIds: memberIds.filter(id => id !== teacher._id) });
+                                }
+                              }}
+                            />
+                            <span>{teacher.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                      {/* Students */}
+                      <div>
+                        <h4 style={{ marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>Students</h4>
+                        {students.filter(s => s.isActive).map((student) => (
+                          <label key={student._id} className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={groupFormData.memberIds?.includes(student._id)}
+                              onChange={(e) => {
+                                const memberIds = groupFormData.memberIds || [];
+                                if (e.target.checked) {
+                                  setGroupFormData({ ...groupFormData, memberIds: [...memberIds, student._id] });
+                                } else {
+                                  setGroupFormData({ ...groupFormData, memberIds: memberIds.filter(id => id !== student._id) });
+                                }
+                              }}
+                            />
+                            <span>{student.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-secondary" onClick={() => {
+                    setShowGroupModal(false);
+                    setEditingGroup(null);
+                    setGroupFormData({ name: '', description: '', memberIds: [] });
+                  }}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    {editingGroup ? 'Update' : 'Create'} Group
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Create User Modal */}
         {showCreateModal && (

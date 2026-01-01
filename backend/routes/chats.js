@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const Group = require('../models/Group');
 const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
@@ -15,7 +16,8 @@ router.use(protect);
 // @access  Private
 router.post('/', [
   body('type').isIn(['private', 'group']).withMessage('Type must be private or group'),
-  body('participantIds').isArray().withMessage('Participant IDs must be an array'),
+  body('participantIds').optional().isArray().withMessage('Participant IDs must be an array'),
+  body('groupId').optional().isMongoId().withMessage('Invalid group ID'),
   body('name').optional().trim()
 ], async (req, res) => {
   try {
@@ -24,25 +26,43 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { type, participantIds, name } = req.body;
+    const { type, participantIds, groupId, name } = req.body;
 
-    // Validate participants
-    if (!participantIds || participantIds.length === 0) {
-      return res.status(400).json({ message: 'At least one participant is required' });
+    let allParticipants = [];
+
+    // If groupId is provided, get participants from group
+    if (groupId) {
+      const group = await Group.findById(groupId).populate('members', '_id');
+      
+      if (!group || !group.isActive) {
+        return res.status(404).json({ message: 'Group not found' });
+      }
+
+      // Check if user belongs to this group
+      if (req.user.role !== 'admin' && !group.members.some(m => m._id.toString() === req.user._id.toString())) {
+        return res.status(403).json({ message: 'You are not a member of this group' });
+      }
+
+      allParticipants = group.members.map(m => m._id.toString());
+    } else {
+      // Validate participants
+      if (!participantIds || participantIds.length === 0) {
+        return res.status(400).json({ message: 'At least one participant is required' });
+      }
+
+      // For private chats, must have exactly 2 participants
+      if (type === 'private' && participantIds.length !== 1) {
+        return res.status(400).json({ message: 'Private chat must have exactly one other participant' });
+      }
+
+      // For group chats, only admins can create manually
+      if (type === 'group' && req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Only admins can create group chats manually. Use groupId to create from a group.' });
+      }
+
+      // Add current user to participants
+      allParticipants = [...new Set([req.user._id.toString(), ...participantIds])];
     }
-
-    // For private chats, must have exactly 2 participants
-    if (type === 'private' && participantIds.length !== 1) {
-      return res.status(400).json({ message: 'Private chat must have exactly one other participant' });
-    }
-
-    // For group chats, admin can create, others cannot
-    if (type === 'group' && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Only admins can create group chats' });
-    }
-
-    // Add current user to participants
-    const allParticipants = [...new Set([req.user._id.toString(), ...participantIds])];
 
     // Check if private chat already exists
     if (type === 'private') {
@@ -81,7 +101,7 @@ router.post('/', [
 });
 
 // @route   GET /api/chats
-// @desc    Get all chats for current user
+// @desc    Get all chats for current user (including group-based chats)
 // @access  Private
 router.get('/', async (req, res) => {
   try {
@@ -102,6 +122,47 @@ router.get('/', async (req, res) => {
         .populate('participants', 'name email avatar role')
         .populate('createdBy', 'name email')
         .sort({ updatedAt: -1 });
+
+      // Also get group chats for groups user belongs to
+      const userGroups = await Group.find({
+        members: req.user._id,
+        isActive: true
+      }).populate('members', '_id');
+
+      // Create or get group chats for each group
+      for (const group of userGroups) {
+        const memberIds = group.members.map(m => m._id.toString());
+        
+        // Check if group chat already exists
+        let groupChat = await Chat.findOne({
+          type: 'group',
+          participants: { $all: memberIds, $size: memberIds.length },
+          name: group.name
+        });
+
+        if (!groupChat) {
+          // Create group chat if it doesn't exist
+          groupChat = await Chat.create({
+            type: 'group',
+            participants: memberIds,
+            name: group.name,
+            createdBy: group.createdBy
+          });
+        }
+
+        // Check if user is already in this chat's participants
+        if (!groupChat.participants.some(p => p.toString() === req.user._id.toString())) {
+          groupChat.participants.push(req.user._id);
+          await groupChat.save();
+        }
+
+        // Add to chats if not already included
+        if (!chats.some(c => c._id.toString() === groupChat._id.toString())) {
+          await groupChat.populate('participants', 'name email avatar role');
+          await groupChat.populate('createdBy', 'name email');
+          chats.push(groupChat);
+        }
+      }
     }
 
     // Get last message for each chat

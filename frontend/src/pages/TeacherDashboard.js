@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import ChatWidget from '../components/ChatWidget';
 import { classService } from '../services/classService';
 import { userService } from '../services/userService';
+import { groupService } from '../services/groupService';
 import { FiPlus, FiVideo, FiCalendar, FiUsers } from 'react-icons/fi';
 import { format } from 'date-fns';
 import './Dashboard.css';
@@ -11,6 +12,7 @@ import './Dashboard.css';
 const TeacherDashboard = () => {
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -18,8 +20,10 @@ const TeacherDashboard = () => {
     description: '',
     scheduledTime: '',
     duration: 60,
-    studentIds: []
+    studentIds: [],
+    groupId: ''
   });
+  const [selectionMode, setSelectionMode] = useState('students'); // 'students' or 'group'
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,12 +32,14 @@ const TeacherDashboard = () => {
 
   const loadData = async () => {
     try {
-      const [classesRes, studentsRes] = await Promise.all([
+      const [classesRes, studentsRes, groupsRes] = await Promise.all([
         classService.getClasses(),
-        userService.getStudents()
+        userService.getStudents(),
+        groupService.getGroups()
       ]);
       setClasses(classesRes.classes);
       setStudents(studentsRes.students);
+      setGroups(groupsRes.groups || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -60,14 +66,27 @@ const TeacherDashboard = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Validate that either group or students are selected
+      if (selectionMode === 'group' && !formData.groupId) {
+        alert('Please select a group');
+        return;
+      }
+      if (selectionMode === 'students' && (!formData.studentIds || formData.studentIds.length === 0)) {
+        alert('Please select at least one student');
+        return;
+      }
+
       // Convert datetime-local string to ISO string
-      // datetime-local format: "YYYY-MM-DDTHH:mm" (local time, no timezone)
-      // new Date() interprets it as local time, toISOString() converts to UTC
       const classData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description,
         scheduledTime: formData.scheduledTime 
           ? new Date(formData.scheduledTime).toISOString()
-          : formData.scheduledTime
+          : formData.scheduledTime,
+        duration: formData.duration,
+        ...(selectionMode === 'group' 
+          ? { groupId: formData.groupId, studentIds: [] }
+          : { groupId: '', studentIds: formData.studentIds })
       };
 
       await classService.createClass(classData);
@@ -77,8 +96,10 @@ const TeacherDashboard = () => {
         description: '',
         scheduledTime: '',
         duration: 60,
-        studentIds: []
+        studentIds: [],
+        groupId: ''
       });
+      setSelectionMode('students');
       loadData();
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to create class');
@@ -99,6 +120,7 @@ const TeacherDashboard = () => {
       }
     }
   };
+
 
   if (loading) {
     return (
@@ -295,23 +317,69 @@ const TeacherDashboard = () => {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Select Students</label>
-                    <div className="student-select">
-                      {students.length === 0 ? (
-                        <p style={{ padding: '16px', color: 'var(--gray-500)', textAlign: 'center' }}>No students available</p>
-                      ) : (
-                        students.map((student) => (
-                          <label key={student._id} className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={formData.studentIds?.includes(student._id)}
-                              onChange={() => handleStudentSelect(student._id)}
-                            />
-                            <span>{student.name}</span>
-                          </label>
-                        ))
-                      )}
+                    <label className="form-label">Select Participants</label>
+                    <div style={{ marginBottom: '12px', display: 'flex', gap: '12px' }}>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${selectionMode === 'students' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => {
+                          setSelectionMode('students');
+                          setFormData({ ...formData, groupId: '' });
+                        }}
+                      >
+                        Individual Students
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${selectionMode === 'group' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => {
+                          setSelectionMode('group');
+                          setFormData({ ...formData, studentIds: [] });
+                        }}
+                      >
+                        Select Group
+                      </button>
                     </div>
+
+                    {selectionMode === 'group' ? (
+                      <div className="form-group">
+                        <select
+                          className="form-input"
+                          value={formData.groupId}
+                          onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
+                          required
+                        >
+                          <option value="">Select a group</option>
+                          {groups.map((group) => (
+                            <option key={group._id} value={group._id}>
+                              {group.name} ({group.members?.filter(m => m.role === 'student').length || 0} students)
+                            </option>
+                          ))}
+                        </select>
+                        {groups.length === 0 && (
+                          <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--gray-500)' }}>
+                            No groups available. Contact admin to create groups.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="student-select">
+                        {students.length === 0 ? (
+                          <p style={{ padding: '16px', color: 'var(--gray-500)', textAlign: 'center' }}>No students available</p>
+                        ) : (
+                          students.map((student) => (
+                            <label key={student._id} className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={formData.studentIds?.includes(student._id)}
+                                onChange={() => handleStudentSelect(student._id)}
+                              />
+                              <span>{student.name}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -327,6 +395,7 @@ const TeacherDashboard = () => {
             </div>
           </div>
         )}
+
       </div>
     </Layout>
   );
