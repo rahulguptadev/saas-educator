@@ -40,7 +40,7 @@ router.put('/profile', protect, [
       // Student fields
       grade, school, fatherName, fatherContact, motherName, motherContact, enrolledSubjects,
       // Teacher fields
-      specialization, qualification
+      specialization, qualification, education, bio, subjects
     } = req.body;
     
     const updateData = {};
@@ -73,6 +73,9 @@ router.put('/profile', protect, [
     if (req.user.role === 'teacher') {
       if (specialization !== undefined) updateData.specialization = specialization;
       if (qualification !== undefined) updateData.qualification = qualification;
+      if (education !== undefined) updateData.education = education;
+      if (bio !== undefined) updateData.bio = bio;
+      if (subjects !== undefined) updateData.subjects = subjects;
     }
 
     const user = await User.findByIdAndUpdate(
@@ -135,8 +138,16 @@ router.get('/students', protect, authorize('teacher', 'admin'), async (req, res)
       ? { role: 'student' }
       : { role: 'student', isActive: true };
     
+    // Select fields based on user role
+    let selectFields = 'name avatar role createdAt isActive';
+    
+    if (req.user.role === 'admin') {
+      // Admins can see all student details
+      selectFields = 'name email phone grade school avatar role createdAt isActive enrolledSubjects fatherName fatherContact motherName motherContact';
+    }
+    
     const students = await User.find(query)
-      .select('name avatar role createdAt isActive');
+      .select(selectFields);
 
     res.json({ students });
   } catch (error) {

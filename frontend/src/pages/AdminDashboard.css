@@ -1,27 +1,56 @@
-/* Admin Dashboard Specific Styles */
+/* Admin Dashboard Specific Styles - Compact Design */
 
 .admin-dashboard {
   max-width: 100%;
+  padding: 0;
+}
+
+.admin-dashboard .dashboard-header {
+  margin-bottom: 16px;
+  padding: 0;
+}
+
+.admin-dashboard .dashboard-title {
+  font-size: 20px;
+  margin: 0;
 }
 
 .admin-dashboard .stats-grid {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
+  gap: 12px;
 }
 
 .admin-dashboard .stat-card {
   cursor: pointer;
   transition: all 0.2s ease;
+  padding: 12px 16px;
+  gap: 12px;
 }
 
 .admin-dashboard .stat-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--primary-light);
 }
 
-/* Tabs Container */
+.admin-dashboard .stat-icon {
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+}
+
+.admin-dashboard .stat-info h3 {
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.admin-dashboard .stat-info p {
+  font-size: 11px;
+}
+
+/* Tabs Container - Compact */
 .tabs-container {
   background: var(--white);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius);
   border: 1px solid var(--gray-200);
   overflow: hidden;
 }
@@ -30,20 +59,20 @@
   display: flex;
   background: var(--gray-50);
   border-bottom: 1px solid var(--gray-200);
-  padding: 8px 8px 0;
-  gap: 4px;
+  padding: 4px 4px 0;
+  gap: 2px;
 }
 
 .tab-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 14px 24px;
+  gap: 6px;
+  padding: 8px 12px;
   background: transparent;
   border: none;
-  border-radius: var(--radius) var(--radius) 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--gray-600);
   transition: all 0.2s ease;
@@ -64,15 +93,15 @@
 }
 
 .tab-btn svg {
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .tab-count {
   background: var(--gray-200);
   color: var(--gray-600);
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10px;
   font-weight: 700;
 }
 
@@ -81,9 +110,9 @@
   color: var(--primary);
 }
 
-/* Tab Content */
+/* Tab Content - Compact */
 .tab-content {
-  min-height: 400px;
+  min-height: 300px;
 }
 
 .tab-panel {
@@ -95,40 +124,46 @@
   to { opacity: 1; }
 }
 
-/* Panel Header */
+/* Panel Header - Compact */
 .panel-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  padding: 24px;
+  align-items: center;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--gray-100);
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 8px;
 }
 
 .panel-title h2 {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--gray-900);
-  margin-bottom: 4px;
+  margin: 0;
 }
 
 .panel-title p {
-  font-size: 14px;
+  font-size: 11px;
   color: var(--gray-500);
+  margin: 0;
 }
 
 .panel-actions {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
-/* Table Toolbar */
+.panel-actions .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* Table Toolbar - Compact */
 .table-toolbar {
   display: flex;
-  gap: 16px;
-  padding: 16px 24px;
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--gray-50);
   border-bottom: 1px solid var(--gray-100);
   flex-wrap: wrap;
@@ -138,15 +173,16 @@
 .search-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   background: var(--white);
   border: 1px solid var(--gray-300);
-  border-radius: var(--radius);
-  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
   flex: 1;
-  min-width: 200px;
-  max-width: 400px;
+  min-width: 180px;
+  max-width: 300px;
   transition: all 0.2s ease;
+  height: 32px;
 }
 
 .search-box:focus-within {
@@ -157,13 +193,14 @@
 .search-box svg {
   color: var(--gray-400);
   flex-shrink: 0;
+  font-size: 14px;
 }
 
 .search-box input {
   border: none;
   outline: none;
-  padding: 10px 0;
-  font-size: 14px;
+  padding: 0;
+  font-size: 12px;
   width: 100%;
   background: transparent;
 }
@@ -193,46 +230,57 @@
 .filter-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   background: var(--white);
   border: 1px solid var(--gray-300);
-  border-radius: var(--radius);
-  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  padding: 0 10px;
+  height: 32px;
 }
 
 .filter-box svg {
   color: var(--gray-400);
+  font-size: 14px;
 }
 
 .filter-box select {
   border: none;
   outline: none;
-  padding: 10px 0;
-  font-size: 14px;
+  padding: 0;
+  font-size: 12px;
   background: transparent;
   cursor: pointer;
   color: var(--gray-700);
-  min-width: 120px;
+  min-width: 100px;
 }
 
 .results-count {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--gray-500);
   margin-left: auto;
 }
 
-/* Table Improvements */
+/* Table Improvements - Compact */
 .admin-dashboard .table-container {
   padding: 0;
 }
 
+.admin-dashboard .data-table {
+  font-size: 12px;
+}
+
 .admin-dashboard .data-table th {
   background: var(--gray-50);
-  padding: 14px 20px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .admin-dashboard .data-table td {
-  padding: 14px 20px;
+  padding: 8px 12px;
+  font-size: 12px;
 }
 
 .td-name {
@@ -243,63 +291,110 @@
 .empty-table {
   text-align: center;
   color: var(--gray-500);
-  padding: 60px 20px !important;
+  padding: 40px 20px !important;
 }
 
 .empty-table .empty-icon {
-  font-size: 48px;
+  font-size: 32px;
   color: var(--gray-300);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   display: block;
 }
 
 .empty-table p {
-  margin-top: 12px;
-  font-size: 14px;
+  margin-top: 8px;
+  font-size: 12px;
 }
 
-/* Classes Grid in Tab */
+/* Classes Grid in Tab - Compact */
 .classes-grid-container {
-  padding: 24px;
+  padding: 12px;
+}
+
+.classes-grid {
+  gap: 12px;
+  padding: 12px;
+}
+
+.class-card {
+  padding: 12px;
 }
 
 .empty-classes {
   text-align: center;
-  padding: 60px 20px;
+  padding: 40px 20px;
   color: var(--gray-500);
 }
 
 .empty-classes .empty-icon {
-  font-size: 48px;
+  font-size: 32px;
   color: var(--gray-300);
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .empty-classes p {
-  font-size: 14px;
+  font-size: 12px;
 }
 
-/* Button Sizes */
+/* Button Sizes - Compact */
 .btn-sm {
-  padding: 8px 14px;
-  font-size: 13px;
+  padding: 4px 8px;
+  font-size: 11px;
 }
 
-/* Table Actions */
+/* Table Actions - Compact */
 .table-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   align-items: center;
 }
 
-/* Large Modal */
+.table-actions .btn {
+  min-width: auto;
+  padding: 4px 8px;
+}
+
+/* Subjects Cell */
+.subjects-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Compact Badges for Admin */
+.admin-dashboard .badge {
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: 12px;
+}
+
+/* Large Modal - Compact */
 .modal-large {
   max-width: 700px;
 }
 
 .modal-body-scroll {
-  max-height: 65vh;
+  max-height: 70vh;
   overflow-y: auto;
+}
+
+/* Compact Modal Header */
+.admin-dashboard .modal-header {
+  padding: 12px 16px;
+}
+
+.admin-dashboard .modal-header h2 {
+  font-size: 16px;
+}
+
+.admin-dashboard .modal-body {
+  padding: 16px;
+}
+
+.admin-dashboard .modal-actions {
+  padding: 12px 16px;
+  gap: 8px;
 }
 
 /* Form Sections */

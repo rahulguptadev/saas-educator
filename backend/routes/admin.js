@@ -75,11 +75,11 @@ router.post('/users', [
     }
 
     const { 
-      name, email, phone, password, role,
+      name, email, phone, password, role, isActive,
       // Student fields
       grade, school, fatherName, fatherContact, motherName, motherContact, enrolledSubjects,
       // Teacher fields
-      specialization, qualification
+      specialization, qualification, education, bio, subjects
     } = req.body;
 
     // Check if user already exists
@@ -95,7 +95,7 @@ router.post('/users', [
       phone: phone || '',
       password,
       role,
-      isActive: true
+      isActive: isActive !== undefined ? isActive : true
     };
 
     // Add student-specific fields
@@ -115,6 +115,9 @@ router.post('/users', [
     if (role === 'teacher') {
       if (specialization) userData.specialization = specialization;
       if (qualification) userData.qualification = qualification;
+      if (education) userData.education = education;
+      if (bio) userData.bio = bio;
+      if (subjects) userData.subjects = subjects;
     }
 
     // Create user
@@ -149,7 +152,7 @@ router.put('/users/:id', [
       // Student fields
       grade, school, fatherName, fatherContact, motherName, motherContact, enrolledSubjects,
       // Teacher fields
-      specialization, qualification
+      specialization, qualification, education, bio, subjects
     } = req.body;
 
     const user = await User.findById(req.params.id);
@@ -193,6 +196,9 @@ router.put('/users/:id', [
     if (user.role === 'teacher') {
       if (specialization !== undefined) updateData.specialization = specialization;
       if (qualification !== undefined) updateData.qualification = qualification;
+      if (education !== undefined) updateData.education = education;
+      if (bio !== undefined) updateData.bio = bio;
+      if (subjects !== undefined) updateData.subjects = subjects;
     }
 
     // Update user

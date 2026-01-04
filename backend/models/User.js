@@ -93,6 +93,18 @@ const userSchema = new mongoose.Schema({
   qualification: {
     type: String,
     trim: true
+  },
+  education: {
+    type: String,
+    trim: true
+  },
+  bio: {
+    type: String,
+    trim: true
+  },
+  subjects: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true

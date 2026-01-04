@@ -66,7 +66,10 @@ const AdminDashboard = () => {
     enrolledSubjects: [],
     // Teacher fields
     specialization: '',
-    qualification: ''
+    qualification: '',
+    education: '',
+    bio: '',
+    subjects: ''
   });
   const [createError, setCreateError] = useState('');
   const [createLoading, setCreateLoading] = useState(false);
@@ -99,7 +102,10 @@ const AdminDashboard = () => {
     enrolledSubjects: [],
     // Teacher fields
     specialization: '',
-    qualification: ''
+    qualification: '',
+    education: '',
+    bio: '',
+    subjects: ''
   });
   const [userError, setUserError] = useState('');
   const [userLoading, setUserLoading] = useState(false);
@@ -194,9 +200,11 @@ const AdminDashboard = () => {
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-                          (student.email && student.email.toLowerCase().includes(studentSearch.toLowerCase())) ||
                           (student.grade && student.grade.toLowerCase().includes(studentSearch.toLowerCase())) ||
-                          (student.school && student.school.toLowerCase().includes(studentSearch.toLowerCase()));
+                          (student.school && student.school.toLowerCase().includes(studentSearch.toLowerCase())) ||
+                          (student.enrolledSubjects && student.enrolledSubjects.some(s => 
+                            s.subject && s.subject.toLowerCase().includes(studentSearch.toLowerCase())
+                          ));
     const matchesFilter = studentFilter === 'all' || 
                           (studentFilter === 'active' && student.isActive) ||
                           (studentFilter === 'inactive' && !student.isActive);
@@ -215,9 +223,9 @@ const AdminDashboard = () => {
     let csvContent = '';
     
     if (type === 'teachers') {
-      csvContent = 'Name,Email,Phone,Specialization,Qualification,Status\n';
+      csvContent = 'Name,Email,Phone,Specialization,Qualification,Education,Bio,Subjects,Status\n';
       data.forEach(user => {
-        csvContent += `"${user.name}","${user.email || ''}","${user.phone || ''}","${user.specialization || ''}","${user.qualification || ''}","${user.isActive ? 'Active' : 'Inactive'}"\n`;
+        csvContent += `"${user.name}","${user.email || ''}","${user.phone || ''}","${user.specialization || ''}","${user.qualification || ''}","${user.education || ''}","${user.bio || ''}","${user.subjects || ''}","${user.isActive ? 'Active' : 'Inactive'}"\n`;
       });
     } else if (type === 'students') {
       csvContent = 'Name,Email,Phone,Grade,School,Father Name,Father Contact,Mother Name,Mother Contact,Status\n';
@@ -253,49 +261,124 @@ const AdminDashboard = () => {
 
   const parseCSV = (text) => {
     const lines = text.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, '').toLowerCase().replace(/\s+/g, ''));
+    
+    // Parse CSV line properly handling quoted fields with commas
+    const parseCSVLine = (line) => {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+        
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            current += '"';
+            i++; // Skip next quote
+          } else {
+            // Toggle quote state
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          // Field separator
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      // Add last field
+      result.push(current.trim());
+      return result;
+    };
+    
+    // Parse headers
+    const headerLine = parseCSVLine(lines[0]);
+    const headers = headerLine.map(h => h.replace(/"/g, '').trim().toLowerCase().replace(/\s+/g, ''));
+    
     const data = [];
     const errors = [];
     
     for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g);
-      if (!values) continue;
+      const values = parseCSVLine(lines[i]);
+      
+      if (values.length !== headers.length) {
+        errors.push(`Row ${i + 1}: Column count mismatch (expected ${headers.length}, got ${values.length})`);
+        continue;
+      }
       
       const row = {};
       values.forEach((val, idx) => {
-        row[headers[idx]] = val.replace(/"/g, '').trim();
+        const cleanVal = val.replace(/^"|"$/g, '').replace(/""/g, '"').trim();
+        row[headers[idx]] = cleanVal;
       });
       
       if (importType === 'teachers') {
         if (!row.name || !row.email) {
           errors.push(`Row ${i}: Missing required fields (name, email)`);
         } else {
+          // Handle different column name variations
+          const phoneValue = row.phone || row.phonenumber || row['phonenumber'] || '';
+          const statusValue = row.status || row.isactive || '';
+          const isActive = statusValue.toLowerCase() === 'active' || statusValue === '' || statusValue === undefined;
+          
           data.push({
             name: row.name,
             email: row.email,
-            phone: row.phone || '',
+            phone: phoneValue,
             password: row.password || 'password123',
             role: 'teacher',
-            specialization: row.specialization || '',
-            qualification: row.qualification || ''
+            specialization: row.specialization || row.subjects || '',
+            qualification: row.qualification || '',
+            education: row.education || '',
+            bio: row.bio || '',
+            subjects: row.subjects || '',
+            isActive: isActive
           });
         }
       } else if (importType === 'students') {
         if (!row.name || !row.email) {
-          errors.push(`Row ${i}: Missing required fields (name, email)`);
+          errors.push(`Row ${i + 1}: Missing required fields (name, email)`);
         } else {
+          // Handle different column name variations
+          const phoneValue = row.phone || row.phonenumber || row['phonenumber'] || '';
+          const statusValue = row.status || row.isactive || '';
+          const isActive = statusValue.toLowerCase() === 'active' || statusValue === '' || statusValue === undefined;
+          
+          // Parse enrolledSubjects from semicolon/comma separated string
+          let enrolledSubjects = [];
+          const subjectsStr = row.enrolledsubjects || row['enrolledsubjects'] || row.subjects || '';
+          if (subjectsStr && subjectsStr.trim() !== '' && subjectsStr !== '-') {
+            try {
+              // Try parsing as JSON first (for backward compatibility)
+              enrolledSubjects = JSON.parse(subjectsStr);
+            } catch (e) {
+              // If not JSON, parse as semicolon/comma separated string
+              const subjects = subjectsStr.split(/[;,]/).map(s => s.trim()).filter(s => s && s !== '-');
+              enrolledSubjects = subjects.map(subject => ({
+                subject: subject.trim(),
+                classes: 0,
+                fees: 0
+              }));
+            }
+          }
+          
           data.push({
             name: row.name,
             email: row.email,
-            phone: row.phone || '',
+            phone: phoneValue,
             password: row.password || 'password123',
             role: 'student',
             grade: row.grade || '',
             school: row.school || '',
-            fatherName: row.fathername || '',
-            fatherContact: row.fathercontact || '',
-            motherName: row.mothername || '',
-            motherContact: row.mothercontact || ''
+            fatherName: row.fathername || row['fathername'] || '',
+            fatherContact: row.fathercontact || row['fathercontact'] || '',
+            motherName: row.mothername || row['mothername'] || '',
+            motherContact: row.mothercontact || row['mothercontact'] || '',
+            enrolledSubjects: enrolledSubjects,
+            isActive: isActive
           });
         }
       }
@@ -357,7 +440,10 @@ const AdminDashboard = () => {
         motherContact: user.motherContact || '',
         enrolledSubjects: user.enrolledSubjects || [],
         specialization: user.specialization || '',
-        qualification: user.qualification || ''
+        qualification: user.qualification || '',
+        education: user.education || '',
+        bio: user.bio || '',
+        subjects: user.subjects || ''
       });
       setIsEditMode(false);
       setShowUserModal(true);
@@ -396,6 +482,9 @@ const AdminDashboard = () => {
       } else if (viewingUser.role === 'teacher') {
         updateData.specialization = userFormData.specialization;
         updateData.qualification = userFormData.qualification;
+        updateData.education = userFormData.education;
+        updateData.bio = userFormData.bio;
+        updateData.subjects = userFormData.subjects;
       }
 
       await adminService.updateUser(viewingUser._id, updateData);
@@ -540,10 +629,10 @@ const AdminDashboard = () => {
         <div className="dashboard-header">
           <h1 className="dashboard-title">Admin Dashboard</h1>
           <button
-            className="btn btn-primary"
+            className="btn btn-primary btn-sm"
             onClick={() => navigate('/admin/chats')}
           >
-            <FiMessageCircle /> View All Chats
+            <FiMessageCircle /> Chats
           </button>
         </div>
 
@@ -768,11 +857,11 @@ const AdminDashboard = () => {
                 </div>
                 
                 <div className="table-toolbar">
-                  <div className="search-box">
+                    <div className="search-box">
                     <FiSearch />
                     <input
                       type="text"
-                      placeholder="Search by name or email..."
+                      placeholder="Search by name, grade, school, or subjects..."
                       value={studentSearch}
                       onChange={(e) => setStudentSearch(e.target.value)}
                     />
@@ -800,9 +889,9 @@ const AdminDashboard = () => {
                     <thead>
                       <tr>
                         <th>Name</th>
-                        <th>Email</th>
                         <th>Grade</th>
                         <th>School</th>
+                        <th>Subjects</th>
                         <th>Phone</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -817,12 +906,20 @@ const AdminDashboard = () => {
                           </td>
                         </tr>
                       ) : (
-                        filteredStudents.map((student) => (
+                        filteredStudents.map((student) => {
+                          // Format enrolled subjects for display
+                          const subjectsDisplay = student.enrolledSubjects && student.enrolledSubjects.length > 0
+                            ? student.enrolledSubjects.map(s => s.subject).join(', ')
+                            : '-';
+                          
+                          return (
                           <tr key={student._id}>
                             <td className="td-name">{student.name}</td>
-                            <td>{student.email || '-'}</td>
                             <td>{student.grade || '-'}</td>
                             <td>{student.school || '-'}</td>
+                            <td className="subjects-cell" title={subjectsDisplay}>
+                              {subjectsDisplay.length > 50 ? `${subjectsDisplay.substring(0, 50)}...` : subjectsDisplay}
+                            </td>
                             <td>{student.phone || '-'}</td>
                             <td>
                               <span className={`badge ${student.isActive ? 'badge-ongoing' : 'badge-cancelled'}`}>
@@ -847,7 +944,8 @@ const AdminDashboard = () => {
                               </div>
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>
@@ -1221,32 +1319,65 @@ const AdminDashboard = () => {
                       </div>
                     )}
 
-                    {createUserRole === 'teacher' && (
-                      <>
-                        <div className="form-group">
-                          <label className="form-label">Specialization</label>
-                          <input
-                            type="text"
-                            name="specialization"
-                            className="form-input"
-                            placeholder="e.g. Mathematics, Science"
-                            value={createFormData.specialization}
-                            onChange={handleCreateFormChange}
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Qualification</label>
-                          <input
-                            type="text"
-                            name="qualification"
-                            className="form-input"
-                            placeholder="e.g. M.Sc, B.Ed"
-                            value={createFormData.qualification}
-                            onChange={handleCreateFormChange}
-                          />
-                        </div>
-                      </>
-                    )}
+      {createUserRole === 'teacher' && (
+                        <>
+                          <div className="form-group">
+                            <label className="form-label">Specialization</label>
+                            <input
+                              type="text"
+                              name="specialization"
+                              className="form-input"
+                              placeholder="e.g. Mathematics, Science"
+                              value={createFormData.specialization}
+                              onChange={handleCreateFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Qualification</label>
+                            <input
+                              type="text"
+                              name="qualification"
+                              className="form-input"
+                              placeholder="e.g. M.Sc, B.Ed"
+                              value={createFormData.qualification}
+                              onChange={handleCreateFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Education</label>
+                            <input
+                              type="text"
+                              name="education"
+                              className="form-input"
+                              placeholder="Educational background"
+                              value={createFormData.education}
+                              onChange={handleCreateFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Subjects</label>
+                            <input
+                              type="text"
+                              name="subjects"
+                              className="form-input"
+                              placeholder="e.g. Maths, Science, English"
+                              value={createFormData.subjects}
+                              onChange={handleCreateFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Bio</label>
+                            <textarea
+                              name="bio"
+                              className="form-textarea"
+                              placeholder="Teacher biography and experience"
+                              value={createFormData.bio}
+                              onChange={handleCreateFormChange}
+                              rows="4"
+                            />
+                          </div>
+                        </>
+                      )}
 
                     <div className="form-group">
                       <label className="form-label">Mobile Number</label>
@@ -1534,6 +1665,39 @@ const AdminDashboard = () => {
                               onChange={handleUserFormChange}
                             />
                           </div>
+                          <div className="form-group">
+                            <label className="form-label">Education</label>
+                            <input
+                              type="text"
+                              name="education"
+                              className="form-input"
+                              placeholder="Educational background"
+                              value={userFormData.education}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Subjects</label>
+                            <input
+                              type="text"
+                              name="subjects"
+                              className="form-input"
+                              placeholder="e.g. Maths, Science, English"
+                              value={userFormData.subjects}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Bio</label>
+                            <textarea
+                              name="bio"
+                              className="form-textarea"
+                              placeholder="Teacher biography and experience"
+                              value={userFormData.bio}
+                              onChange={handleUserFormChange}
+                              rows="4"
+                            />
+                          </div>
                         </>
                       )}
 
@@ -1753,6 +1917,20 @@ const AdminDashboard = () => {
                               <label>Qualification</label>
                               <p>{viewingUser.qualification || '-'}</p>
                             </div>
+                            <div className="view-detail-item">
+                              <label>Education</label>
+                              <p>{viewingUser.education || '-'}</p>
+                            </div>
+                            <div className="view-detail-item">
+                              <label>Subjects</label>
+                              <p>{viewingUser.subjects || '-'}</p>
+                            </div>
+                            {viewingUser.bio && (
+                              <div className="view-detail-item" style={{ gridColumn: '1 / -1' }}>
+                                <label>Bio</label>
+                                <p style={{ whiteSpace: 'pre-wrap' }}>{viewingUser.bio}</p>
+                              </div>
+                            )}
                           </>
                         )}
                       </div>
@@ -1844,9 +2022,9 @@ const AdminDashboard = () => {
                       <h4>CSV Format Requirements:</h4>
                       <p>Upload a CSV file with the following columns:</p>
                       {importType === 'teachers' ? (
-                        <code>Name, Email, Phone, Password (optional), Specialization, Qualification</code>
+                        <code>Name, Email, Phone, Password (optional), Specialization, Qualification, Education, Bio, Subjects, Status</code>
                       ) : (
-                        <code>Name, Email, Phone, Password (optional), Grade, School, FatherName, FatherContact, MotherName, MotherContact</code>
+                        <code>Name, Email, Phone, Password (optional), Grade, School, FatherName, FatherContact, MotherName, MotherContact, Enrolled Subjects (JSON array), Status</code>
                       )}
                       <p className="import-note">
                         <FiAlertCircle /> If password is not provided, default password "password123" will be used.
