@@ -7,7 +7,7 @@ import { groupService } from '../services/groupService';
 import { 
   FiUsers, FiBook, FiCalendar, FiPlus, FiVideo, FiMessageCircle,
   FiSearch, FiFilter, FiDownload, FiUpload, FiX, FiCheck, FiAlertCircle,
-  FiUserCheck, FiBookOpen, FiEdit2, FiTrash2
+  FiUserCheck, FiBookOpen, FiEdit2, FiTrash2, FiEye
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -79,6 +79,30 @@ const AdminDashboard = () => {
     description: '',
     memberIds: []
   });
+  
+  // View/Edit user states
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [viewingUser, setViewingUser] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [userFormData, setUserFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    // Student fields
+    grade: '',
+    school: '',
+    fatherName: '',
+    fatherContact: '',
+    motherName: '',
+    motherContact: '',
+    enrolledSubjects: [],
+    // Teacher fields
+    specialization: '',
+    qualification: ''
+  });
+  const [userError, setUserError] = useState('');
+  const [userLoading, setUserLoading] = useState(false);
   
   // Grade and Subject options
   const gradeOptions = [
@@ -313,6 +337,103 @@ const AdminDashboard = () => {
     } catch (error) {
       alert(error.response?.data?.message || 'Failed to update user status');
     }
+  };
+
+  const handleViewUser = async (userId) => {
+    try {
+      const response = await adminService.getUser(userId);
+      const user = response.user;
+      setViewingUser(user);
+      setUserFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        password: '',
+        grade: user.grade || '',
+        school: user.school || '',
+        fatherName: user.fatherName || '',
+        fatherContact: user.fatherContact || '',
+        motherName: user.motherName || '',
+        motherContact: user.motherContact || '',
+        enrolledSubjects: user.enrolledSubjects || [],
+        specialization: user.specialization || '',
+        qualification: user.qualification || ''
+      });
+      setIsEditMode(false);
+      setShowUserModal(true);
+      setUserError('');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to load user details');
+    }
+  };
+
+  const handleEditUser = () => {
+    setIsEditMode(true);
+    setUserError('');
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    setUserError('');
+    setUserLoading(true);
+
+    try {
+      const updateData = {
+        name: userFormData.name,
+        email: userFormData.email,
+        phone: userFormData.phone,
+        ...(userFormData.password && { password: userFormData.password })
+      };
+
+      if (viewingUser.role === 'student') {
+        updateData.grade = userFormData.grade;
+        updateData.school = userFormData.school;
+        updateData.fatherName = userFormData.fatherName;
+        updateData.fatherContact = userFormData.fatherContact;
+        updateData.motherName = userFormData.motherName;
+        updateData.motherContact = userFormData.motherContact;
+        updateData.enrolledSubjects = userFormData.enrolledSubjects;
+      } else if (viewingUser.role === 'teacher') {
+        updateData.specialization = userFormData.specialization;
+        updateData.qualification = userFormData.qualification;
+      }
+
+      await adminService.updateUser(viewingUser._id, updateData);
+      setShowUserModal(false);
+      setIsEditMode(false);
+      setViewingUser(null);
+      await loadData();
+    } catch (error) {
+      setUserError(error.response?.data?.message || 'Failed to update user');
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
+  const handleUserFormChange = (e) => {
+    setUserFormData({
+      ...userFormData,
+      [e.target.name]: e.target.value
+    });
+    setUserError('');
+  };
+
+  const addSubjectToEdit = () => {
+    setUserFormData({
+      ...userFormData,
+      enrolledSubjects: [...userFormData.enrolledSubjects, { subject: '', classes: 0, fees: 0 }]
+    });
+  };
+
+  const removeSubjectFromEdit = (index) => {
+    const updated = userFormData.enrolledSubjects.filter((_, i) => i !== index);
+    setUserFormData({ ...userFormData, enrolledSubjects: updated });
+  };
+
+  const handleSubjectFieldChangeEdit = (index, field, value) => {
+    const updated = [...userFormData.enrolledSubjects];
+    updated[index] = { ...updated[index], [field]: value };
+    setUserFormData({ ...userFormData, enrolledSubjects: updated });
   };
 
   const handleCreateUser = async (e) => {
@@ -594,12 +715,21 @@ const AdminDashboard = () => {
                               </span>
                             </td>
                             <td>
-                              <button
-                                className={`btn btn-sm ${teacher.isActive ? 'btn-danger' : 'btn-success'}`}
-                                onClick={() => handleToggleUserStatus(teacher._id, teacher.isActive)}
-                              >
-                                {teacher.isActive ? 'Deactivate' : 'Activate'}
-                              </button>
+                              <div className="table-actions">
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => handleViewUser(teacher._id)}
+                                  title="View Details"
+                                >
+                                  <FiEye />
+                                </button>
+                                <button
+                                  className={`btn btn-sm ${teacher.isActive ? 'btn-danger' : 'btn-success'}`}
+                                  onClick={() => handleToggleUserStatus(teacher._id, teacher.isActive)}
+                                >
+                                  {teacher.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -700,12 +830,21 @@ const AdminDashboard = () => {
                               </span>
                             </td>
                             <td>
-                              <button
-                                className={`btn btn-sm ${student.isActive ? 'btn-danger' : 'btn-success'}`}
-                                onClick={() => handleToggleUserStatus(student._id, student.isActive)}
-                              >
-                                {student.isActive ? 'Deactivate' : 'Activate'}
-                              </button>
+                              <div className="table-actions">
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={() => handleViewUser(student._id)}
+                                  title="View Details"
+                                >
+                                  <FiEye />
+                                </button>
+                                <button
+                                  className={`btn btn-sm ${student.isActive ? 'btn-danger' : 'btn-success'}`}
+                                  onClick={() => handleToggleUserStatus(student._id, student.isActive)}
+                                >
+                                  {student.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -1274,6 +1413,417 @@ const AdminDashboard = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* View/Edit User Modal */}
+        {showUserModal && viewingUser && (
+          <div className="modal-overlay" onClick={() => {
+            if (!isEditMode) {
+              setShowUserModal(false);
+              setViewingUser(null);
+              setIsEditMode(false);
+            }
+          }}>
+            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>
+                  {isEditMode ? `Edit ${viewingUser.role === 'teacher' ? 'Teacher' : 'Student'}` : `View ${viewingUser.role === 'teacher' ? 'Teacher' : 'Student'} Details`}
+                </h2>
+                <button 
+                  className="modal-close" 
+                  onClick={() => {
+                    setShowUserModal(false);
+                    setViewingUser(null);
+                    setIsEditMode(false);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              
+              {isEditMode ? (
+                <form onSubmit={handleUpdateUser}>
+                  <div className="modal-body modal-body-scroll">
+                    {userError && <div className="alert alert-error">{userError}</div>}
+
+                    {/* Basic Information Section */}
+                    <div className="form-section">
+                      <h3 className="form-section-title">
+                        {viewingUser.role === 'student' ? 'Student Information' : 'Teacher Information'}
+                      </h3>
+                      
+                      <div className="form-group">
+                        <label className="form-label">Name</label>
+                        <input
+                          type="text"
+                          name="name"
+                          className="form-input"
+                          placeholder="Enter full name"
+                          value={userFormData.name}
+                          onChange={handleUserFormChange}
+                          required
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Email</label>
+                        <input
+                          type="email"
+                          name="email"
+                          className="form-input"
+                          placeholder="Enter email address"
+                          value={userFormData.email}
+                          onChange={handleUserFormChange}
+                          required
+                        />
+                      </div>
+
+                      {viewingUser.role === 'student' && (
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="form-label">Grade</label>
+                            <select
+                              name="grade"
+                              className="form-input"
+                              value={userFormData.grade}
+                              onChange={handleUserFormChange}
+                            >
+                              <option value="">Select Grade</option>
+                              {gradeOptions.map(g => (
+                                <option key={g} value={g}>{g}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">School</label>
+                            <input
+                              type="text"
+                              name="school"
+                              className="form-input"
+                              placeholder="School name"
+                              value={userFormData.school}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {viewingUser.role === 'teacher' && (
+                        <>
+                          <div className="form-group">
+                            <label className="form-label">Specialization</label>
+                            <input
+                              type="text"
+                              name="specialization"
+                              className="form-input"
+                              placeholder="e.g. Mathematics, Science"
+                              value={userFormData.specialization}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Qualification</label>
+                            <input
+                              type="text"
+                              name="qualification"
+                              className="form-input"
+                              placeholder="e.g. M.Sc, B.Ed"
+                              value={userFormData.qualification}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      <div className="form-group">
+                        <label className="form-label">Mobile Number</label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          className="form-input"
+                          placeholder="+1(480)5696714"
+                          value={userFormData.phone}
+                          onChange={handleUserFormChange}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Password (Leave blank to keep current password)</label>
+                        <input
+                          type="password"
+                          name="password"
+                          className="form-input"
+                          value={userFormData.password}
+                          onChange={handleUserFormChange}
+                          minLength={6}
+                          placeholder="Enter new password (optional)"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Parent Information (Students only) */}
+                    {viewingUser.role === 'student' && (
+                      <div className="form-section">
+                        <h3 className="form-section-title">Parent Information</h3>
+                        
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="form-label">Father's Name</label>
+                            <input
+                              type="text"
+                              name="fatherName"
+                              className="form-input"
+                              placeholder="Father's full name"
+                              value={userFormData.fatherName}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Father's Contact</label>
+                            <input
+                              type="tel"
+                              name="fatherContact"
+                              className="form-input"
+                              placeholder="+1(480)569-6714"
+                              value={userFormData.fatherContact}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="form-label">Mother's Name</label>
+                            <input
+                              type="text"
+                              name="motherName"
+                              className="form-input"
+                              placeholder="Mother's full name"
+                              value={userFormData.motherName}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Mother's Contact</label>
+                            <input
+                              type="tel"
+                              name="motherContact"
+                              className="form-input"
+                              placeholder="+1234567890"
+                              value={userFormData.motherContact}
+                              onChange={handleUserFormChange}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Enrolled Subjects (Students only) */}
+                    {viewingUser.role === 'student' && (
+                      <div className="form-section">
+                        <h3 className="form-section-title">
+                          Enrolled Subjects
+                          <button type="button" className="btn btn-sm btn-secondary" onClick={addSubjectToEdit}>
+                            <FiPlus /> Add Subject
+                          </button>
+                        </h3>
+                        
+                        {userFormData.enrolledSubjects.length > 0 ? (
+                          <div className="subjects-edit-list">
+                            {userFormData.enrolledSubjects.map((subj, idx) => (
+                              <div key={idx} className="subject-edit-row">
+                                <div className="form-group">
+                                  <label className="form-label">Subject</label>
+                                  <select
+                                    className="form-input"
+                                    value={subj.subject}
+                                    onChange={(e) => handleSubjectFieldChangeEdit(idx, 'subject', e.target.value)}
+                                  >
+                                    <option value="">Select Subject</option>
+                                    {subjectOptions.map(s => (
+                                      <option key={s} value={s}>{s}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="form-group">
+                                  <label className="form-label">Classes</label>
+                                  <input
+                                    type="number"
+                                    className="form-input"
+                                    value={subj.classes}
+                                    onChange={(e) => handleSubjectFieldChangeEdit(idx, 'classes', parseInt(e.target.value) || 0)}
+                                    min="0"
+                                  />
+                                </div>
+                                <div className="form-group">
+                                  <label className="form-label">Fees (₹)</label>
+                                  <input
+                                    type="number"
+                                    className="form-input"
+                                    value={subj.fees}
+                                    onChange={(e) => handleSubjectFieldChangeEdit(idx, 'fees', parseInt(e.target.value) || 0)}
+                                    min="0"
+                                  />
+                                </div>
+                                <button 
+                                  type="button" 
+                                  className="btn-remove-subject"
+                                  onClick={() => removeSubjectFromEdit(idx)}
+                                >
+                                  <FiX />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="no-subjects-text">No subjects added. Click "Add Subject" to add one.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="modal-actions">
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      onClick={() => setIsEditMode(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={userLoading}
+                    >
+                      {userLoading ? 'Updating...' : 'Update'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="modal-body modal-body-scroll">
+                    {/* Basic Information Section */}
+                    <div className="form-section">
+                      <h3 className="form-section-title">
+                        {viewingUser.role === 'student' ? 'Student Information' : 'Teacher Information'}
+                      </h3>
+                      
+                      <div className="view-details-grid">
+                        <div className="view-detail-item">
+                          <label>Name</label>
+                          <p>{viewingUser.name || '-'}</p>
+                        </div>
+                        <div className="view-detail-item">
+                          <label>Email</label>
+                          <p>{viewingUser.email || '-'}</p>
+                        </div>
+                        <div className="view-detail-item">
+                          <label>Phone</label>
+                          <p>{viewingUser.phone || '-'}</p>
+                        </div>
+                        <div className="view-detail-item">
+                          <label>Status</label>
+                          <p>
+                            <span className={`badge ${viewingUser.isActive ? 'badge-ongoing' : 'badge-cancelled'}`}>
+                              {viewingUser.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </p>
+                        </div>
+                        {viewingUser.role === 'student' && (
+                          <>
+                            <div className="view-detail-item">
+                              <label>Grade</label>
+                              <p>{viewingUser.grade || '-'}</p>
+                            </div>
+                            <div className="view-detail-item">
+                              <label>School</label>
+                              <p>{viewingUser.school || '-'}</p>
+                            </div>
+                          </>
+                        )}
+                        {viewingUser.role === 'teacher' && (
+                          <>
+                            <div className="view-detail-item">
+                              <label>Specialization</label>
+                              <p>{viewingUser.specialization || '-'}</p>
+                            </div>
+                            <div className="view-detail-item">
+                              <label>Qualification</label>
+                              <p>{viewingUser.qualification || '-'}</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Parent Information (Students only) */}
+                    {viewingUser.role === 'student' && (
+                      <div className="form-section">
+                        <h3 className="form-section-title">Parent Information</h3>
+                        <div className="view-details-grid">
+                          <div className="view-detail-item">
+                            <label>Father's Name</label>
+                            <p>{viewingUser.fatherName || '-'}</p>
+                          </div>
+                          <div className="view-detail-item">
+                            <label>Father's Contact</label>
+                            <p>{viewingUser.fatherContact || '-'}</p>
+                          </div>
+                          <div className="view-detail-item">
+                            <label>Mother's Name</label>
+                            <p>{viewingUser.motherName || '-'}</p>
+                          </div>
+                          <div className="view-detail-item">
+                            <label>Mother's Contact</label>
+                            <p>{viewingUser.motherContact || '-'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Enrolled Subjects (Students only) */}
+                    {viewingUser.role === 'student' && viewingUser.enrolledSubjects && viewingUser.enrolledSubjects.length > 0 && (
+                      <div className="form-section">
+                        <h3 className="form-section-title">Enrolled Subjects</h3>
+                        <div className="subjects-view-list">
+                          {viewingUser.enrolledSubjects.map((subj, idx) => (
+                            <div key={idx} className="subject-view-row">
+                              <div>
+                                <strong>{subj.subject}</strong>
+                              </div>
+                              <div>Classes: {subj.classes || 0}</div>
+                              <div>Fees: ₹{subj.fees || 0}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="modal-actions">
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      onClick={() => {
+                        setShowUserModal(false);
+                        setViewingUser(null);
+                        setIsEditMode(false);
+                      }}
+                    >
+                      Close
+                    </button>
+                    <button 
+                      type="button" 
+                      className="btn btn-primary"
+                      onClick={handleEditUser}
+                    >
+                      <FiEdit2 /> Edit
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -285,6 +285,13 @@
   font-size: 13px;
 }
 
+/* Table Actions */
+.table-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* Large Modal */
 .modal-large {
   max-width: 700px;
@@ -571,6 +578,61 @@
   font-size: 14px;
 }
 
+/* View Details Grid */
+.view-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.view-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.view-detail-item label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.view-detail-item p {
+  font-size: 14px;
+  color: var(--gray-800);
+  margin: 0;
+}
+
+/* Subjects View List */
+.subjects-view-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.subject-view-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  border: 1px solid var(--gray-200);
+  align-items: center;
+}
+
+.subject-view-row > div {
+  font-size: 14px;
+  color: var(--gray-700);
+}
+
+.subject-view-row > div:first-child {
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .tabs-nav {
@@ -639,5 +701,23 @@
   .btn-remove-subject {
     width: 100%;
     margin-top: 8px;
+  }
+
+  .view-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subject-view-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .table-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .table-actions .btn {
+    width: 100%;
   }
 }

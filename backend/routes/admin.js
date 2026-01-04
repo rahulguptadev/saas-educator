@@ -130,6 +130,87 @@ router.post('/users', [
   }
 });
 
+// @route   PUT /api/admin/users/:id
+// @desc    Update user details
+// @access  Private (Admin)
+router.put('/users/:id', [
+  body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
+  body('email').optional().isEmail().withMessage('Please provide a valid email'),
+  body('phone').optional().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { 
+      name, email, phone, password,
+      // Student fields
+      grade, school, fatherName, fatherContact, motherName, motherContact, enrolledSubjects,
+      // Teacher fields
+      specialization, qualification
+    } = req.body;
+
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Build update data
+    const updateData = {};
+
+    // Common fields
+    if (name !== undefined) updateData.name = name;
+    if (phone !== undefined) updateData.phone = phone;
+    
+    // Check if email is being changed and if it's already taken
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email, _id: { $ne: user._id } });
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+      updateData.email = email;
+    }
+
+    // Update password if provided
+    if (password) {
+      updateData.password = password;
+    }
+
+    // Student-specific fields
+    if (user.role === 'student') {
+      if (grade !== undefined) updateData.grade = grade;
+      if (school !== undefined) updateData.school = school;
+      if (fatherName !== undefined) updateData.fatherName = fatherName;
+      if (fatherContact !== undefined) updateData.fatherContact = fatherContact;
+      if (motherName !== undefined) updateData.motherName = motherName;
+      if (motherContact !== undefined) updateData.motherContact = motherContact;
+      if (enrolledSubjects !== undefined) updateData.enrolledSubjects = enrolledSubjects;
+    }
+
+    // Teacher-specific fields
+    if (user.role === 'teacher') {
+      if (specialization !== undefined) updateData.specialization = specialization;
+      if (qualification !== undefined) updateData.qualification = qualification;
+    }
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    res.json({ 
+      message: 'User updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
 // @route   DELETE /api/admin/users/:id
 // @desc    Delete user
 // @access  Private (Admin)

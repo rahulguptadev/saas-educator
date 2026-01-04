@@ -20,5 +20,15 @@ export const adminService = {
     const response = await api.delete(`/admin/users/${userId}`);
     return response.data;
   },
+
+  updateUser: async (userId, userData) => {
+    const response = await api.put(`/admin/users/${userId}`, userData);
+    return response.data;
+  },
+
+  getUser: async (userId) => {
+    const response = await api.get(`/users/${userId}`);
+    return response.data;
+  },
 };
 
