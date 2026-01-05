@@ -60,6 +60,35 @@ router.post('/', [
         return res.status(403).json({ message: 'Only admins can create group chats manually. Use groupId to create from a group.' });
       }
 
+      // For non-admin users, validate that all participants share at least one group
+      if (req.user.role !== 'admin') {
+        // Get all groups the current user belongs to
+        const userGroups = await Group.find({
+          members: req.user._id,
+          isActive: true
+        }).select('members');
+
+        if (userGroups.length === 0) {
+          return res.status(403).json({ message: 'You must be a member of at least one group to create chats' });
+        }
+
+        // Collect all user IDs from groups the current user belongs to
+        const userIdsInGroups = new Set();
+        userGroups.forEach(group => {
+          group.members.forEach(memberId => {
+            userIdsInGroups.add(memberId.toString());
+          });
+        });
+
+        // Verify all requested participants are in at least one shared group
+        const invalidParticipants = participantIds.filter(pid => !userIdsInGroups.has(pid.toString()));
+        if (invalidParticipants.length > 0) {
+          return res.status(403).json({ 
+            message: 'You can only chat with users who belong to your groups' 
+          });
+        }
+      }
+
       // Add current user to participants
       allParticipants = [...new Set([req.user._id.toString(), ...participantIds])];
     }

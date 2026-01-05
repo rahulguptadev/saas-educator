@@ -295,6 +295,16 @@ const ChatPage = () => {
                 <button className="modal-close" onClick={() => setShowNewChatModal(false)}>×</button>
               </div>
 
+              {availableUsers.length === 0 && user?.role !== 'admin' && (
+                <div className="alert alert-warning" style={{ margin: '16px', padding: '12px', background: '#fef3c7', border: '1px solid #fbbf24', borderRadius: '8px', color: '#92400e' }}>
+                  <strong>No users available</strong>
+                  <p style={{ margin: '8px 0 0', fontSize: '13px' }}>
+                    You can only chat with users who belong to your groups. 
+                    Please contact an admin to be added to a group.
+                  </p>
+                </div>
+              )}
+
               <div className="form-group">
                 <label className="form-label">Chat Type</label>
                 <select
@@ -329,17 +339,25 @@ const ChatPage = () => {
                   Select {newChatType === 'private' ? 'User' : 'Users'}
                 </label>
                 <div className="user-select-list">
-                  {availableUsers.map((userItem) => (
-                    <label key={userItem._id} className="user-select-item">
-                      <input
-                        type="checkbox"
-                        checked={selectedUsers.some(u => u._id === userItem._id)}
-                        onChange={() => toggleUserSelection(userItem._id)}
-                        disabled={newChatType === 'private' && selectedUsers.length === 1 && !selectedUsers.some(u => u._id === userItem._id)}
-                      />
-                      <span>{userItem.name} ({userItem.role})</span>
-                    </label>
-                  ))}
+                  {availableUsers.length === 0 ? (
+                    <p style={{ padding: '16px', textAlign: 'center', color: 'var(--gray-500)', fontSize: '13px' }}>
+                      {user?.role === 'admin' 
+                        ? 'No users available' 
+                        : 'No users available. You can only chat with users from your groups.'}
+                    </p>
+                  ) : (
+                    availableUsers.map((userItem) => (
+                      <label key={userItem._id} className="user-select-item">
+                        <input
+                          type="checkbox"
+                          checked={selectedUsers.some(u => u._id === userItem._id)}
+                          onChange={() => toggleUserSelection(userItem._id)}
+                          disabled={newChatType === 'private' && selectedUsers.length === 1 && !selectedUsers.some(u => u._id === userItem._id)}
+                        />
+                        <span>{userItem.name} ({userItem.role})</span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
 

@@ -171,45 +171,72 @@ router.get('/teachers', protect, authorize('admin'), async (req, res) => {
 });
 
 // @route   GET /api/users/available
-// @desc    Get all users available for chatting (role-based)
+// @desc    Get all users available for chatting (only from shared groups)
 // @access  Private
 router.get('/available', protect, async (req, res) => {
   try {
+    const Group = require('../models/Group');
     let users;
 
     if (req.user.role === 'admin') {
       // Admins can see all users
       users = await User.find({ _id: { $ne: req.user._id }, isActive: true })
         .select('name email avatar role');
-    } else if (req.user.role === 'teacher') {
-      // Teachers can see students and other teachers
-      // Get all users first, then filter out email for students
-      const allUsers = await User.find({
-        _id: { $ne: req.user._id },
-        isActive: true,
-        role: { $in: ['student', 'teacher'] }
-      })
-        .select('name avatar role email phone');
-      
-      // Hide email and phone from students for teachers
-      users = allUsers.map(u => {
-        const userObj = u.toObject();
-        if (userObj.role === 'student') {
-          delete userObj.email;
-          delete userObj.phone;
-        }
-        return userObj;
-      });
-    } else if (req.user.role === 'student') {
-      // Students can see teachers and other students
-      users = await User.find({
-        _id: { $ne: req.user._id },
-        isActive: true,
-        role: { $in: ['student', 'teacher'] }
-      })
-        .select('name avatar role');
     } else {
-      users = [];
+      // For teachers and students: only show users from shared groups
+      // Get all groups the current user belongs to
+      const userGroups = await Group.find({
+        members: req.user._id,
+        isActive: true
+      }).select('members');
+
+      // Collect all user IDs from groups the current user belongs to
+      const userIdsInGroups = new Set();
+      userGroups.forEach(group => {
+        group.members.forEach(memberId => {
+          if (memberId.toString() !== req.user._id.toString()) {
+            userIdsInGroups.add(memberId.toString());
+          }
+        });
+      });
+
+      if (userGroups.length === 0) {
+        // User is not in any groups, return empty
+        users = [];
+      } else {
+        // Get users who are in at least one shared group
+        const userIdsArray = Array.from(userIdsInGroups);
+        
+        if (req.user.role === 'teacher') {
+          // Teachers can see students and other teachers from their groups
+          const allUsers = await User.find({
+            _id: { $in: userIdsArray },
+            isActive: true,
+            role: { $in: ['student', 'teacher'] }
+          })
+            .select('name avatar role email phone');
+          
+          // Hide email and phone from students for teachers
+          users = allUsers.map(u => {
+            const userObj = u.toObject();
+            if (userObj.role === 'student') {
+              delete userObj.email;
+              delete userObj.phone;
+            }
+            return userObj;
+          });
+        } else if (req.user.role === 'student') {
+          // Students can see teachers and other students from their groups
+          users = await User.find({
+            _id: { $in: userIdsArray },
+            isActive: true,
+            role: { $in: ['student', 'teacher'] }
+          })
+            .select('name avatar role');
+        } else {
+          users = [];
+        }
+      }
     }
 
     res.json({ users });
