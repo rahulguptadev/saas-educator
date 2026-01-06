@@ -83,6 +83,19 @@ const AdminDashboard = () => {
     memberIds: []
   });
   
+  // Create class states
+  const [showCreateClassModal, setShowCreateClassModal] = useState(false);
+  const [classFormData, setClassFormData] = useState({
+    title: '',
+    description: '',
+    scheduledTime: '',
+    duration: 60,
+    studentIds: [],
+    groupId: '',
+    teacherId: ''
+  });
+  const [classSelectionMode, setClassSelectionMode] = useState('students'); // 'students' or 'group'
+  
   // View/Edit user states
   const [showUserModal, setShowUserModal] = useState(false);
   const [viewingUser, setViewingUser] = useState(null);
@@ -596,6 +609,71 @@ const AdminDashboard = () => {
     navigate(`/classroom/${classId}`);
   };
 
+  const handleClassFormChange = (e) => {
+    const { name, value } = e.target;
+    setClassFormData({ ...classFormData, [name]: value });
+  };
+
+  const handleStudentSelectForClass = (studentId) => {
+    setClassFormData(prev => {
+      const studentIds = prev.studentIds || [];
+      if (studentIds.includes(studentId)) {
+        return { ...prev, studentIds: studentIds.filter(id => id !== studentId) };
+      } else {
+        return { ...prev, studentIds: [...studentIds, studentId] };
+      }
+    });
+  };
+
+  const handleCreateClass = async (e) => {
+    e.preventDefault();
+    try {
+      // Validate that either group or students are selected
+      if (classSelectionMode === 'group' && !classFormData.groupId) {
+        alert('Please select a group');
+        return;
+      }
+      if (classSelectionMode === 'students' && (!classFormData.studentIds || classFormData.studentIds.length === 0)) {
+        alert('Please select at least one student');
+        return;
+      }
+      if (!classFormData.teacherId) {
+        alert('Please select a teacher');
+        return;
+      }
+
+      // Convert datetime-local string to ISO string
+      const classData = {
+        title: classFormData.title,
+        description: classFormData.description,
+        scheduledTime: classFormData.scheduledTime 
+          ? new Date(classFormData.scheduledTime).toISOString()
+          : classFormData.scheduledTime,
+        duration: classFormData.duration,
+        teacherId: classFormData.teacherId,
+        ...(classSelectionMode === 'group' 
+          ? { groupId: classFormData.groupId, studentIds: [] }
+          : { groupId: '', studentIds: classFormData.studentIds })
+      };
+
+      await classService.createClass(classData);
+      setShowCreateClassModal(false);
+      setClassFormData({
+        title: '',
+        description: '',
+        scheduledTime: '',
+        duration: 60,
+        studentIds: [],
+        groupId: '',
+        teacherId: ''
+      });
+      setClassSelectionMode('students');
+      loadData();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to create class');
+    }
+  };
+
   const openImportModal = (type) => {
     setImportType(type);
     setShowImportModal(true);
@@ -964,6 +1042,24 @@ const AdminDashboard = () => {
                   <div className="panel-actions">
                     <button className="btn btn-secondary" onClick={() => exportToCSV(filteredClasses, 'classes', 'classes')}>
                       <FiDownload /> Export
+                    </button>
+                    <button 
+                      className="btn btn-primary" 
+                      onClick={() => {
+                        setClassFormData({
+                          title: '',
+                          description: '',
+                          scheduledTime: '',
+                          duration: 60,
+                          studentIds: [],
+                          groupId: '',
+                          teacherId: ''
+                        });
+                        setClassSelectionMode('students');
+                        setShowCreateClassModal(true);
+                      }}
+                    >
+                      <FiPlus /> Create Class
                     </button>
                   </div>
                 </div>
@@ -2002,6 +2098,169 @@ const AdminDashboard = () => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Create Class Modal */}
+        {showCreateClassModal && (
+          <div className="modal-overlay" onClick={() => setShowCreateClassModal(false)}>
+            <div className="modal-content modal-large" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Create New Class</h2>
+                <button className="modal-close" onClick={() => setShowCreateClassModal(false)}>×</button>
+              </div>
+              <form onSubmit={handleCreateClass}>
+                <div className="modal-body modal-body-scroll">
+                  <div className="form-group">
+                    <label className="form-label">Teacher *</label>
+                    <select
+                      name="teacherId"
+                      className="form-input"
+                      value={classFormData.teacherId}
+                      onChange={handleClassFormChange}
+                      required
+                    >
+                      <option value="">Select a teacher</option>
+                      {teachers.filter(t => t.isActive).map((teacher) => (
+                        <option key={teacher._id} value={teacher._id}>
+                          {teacher.name} ({teacher.email})
+                        </option>
+                      ))}
+                    </select>
+                    {teachers.filter(t => t.isActive).length === 0 && (
+                      <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--gray-500)' }}>
+                        No active teachers available. Please create a teacher first.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Class Title *</label>
+                    <input
+                      type="text"
+                      name="title"
+                      className="form-input"
+                      placeholder="Enter class title"
+                      value={classFormData.title}
+                      onChange={handleClassFormChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      name="description"
+                      className="form-textarea"
+                      placeholder="Enter class description (optional)"
+                      value={classFormData.description}
+                      onChange={handleClassFormChange}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Scheduled Time *</label>
+                    <input
+                      type="datetime-local"
+                      name="scheduledTime"
+                      className="form-input"
+                      value={classFormData.scheduledTime}
+                      onChange={handleClassFormChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Duration (minutes) *</label>
+                    <input
+                      type="number"
+                      name="duration"
+                      className="form-input"
+                      placeholder="60"
+                      value={classFormData.duration}
+                      onChange={handleClassFormChange}
+                      min="15"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Select Participants *</label>
+                    <div style={{ marginBottom: '12px', display: 'flex', gap: '12px' }}>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${classSelectionMode === 'students' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => {
+                          setClassSelectionMode('students');
+                          setClassFormData({ ...classFormData, groupId: '' });
+                        }}
+                      >
+                        Individual Students
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn btn-sm ${classSelectionMode === 'group' ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => {
+                          setClassSelectionMode('group');
+                          setClassFormData({ ...classFormData, studentIds: [] });
+                        }}
+                      >
+                        Select Group
+                      </button>
+                    </div>
+
+                    {classSelectionMode === 'group' ? (
+                      <div className="form-group">
+                        <select
+                          className="form-input"
+                          value={classFormData.groupId}
+                          onChange={(e) => setClassFormData({ ...classFormData, groupId: e.target.value })}
+                          required
+                        >
+                          <option value="">Select a group</option>
+                          {groups.map((group) => (
+                            <option key={group._id} value={group._id}>
+                              {group.name} ({group.members?.filter(m => m.role === 'student').length || 0} students)
+                            </option>
+                          ))}
+                        </select>
+                        {groups.length === 0 && (
+                          <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--gray-500)' }}>
+                            No groups available. Create a group first.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="student-select" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                        {students.filter(s => s.isActive).length === 0 ? (
+                          <p style={{ padding: '16px', color: 'var(--gray-500)', textAlign: 'center' }}>No active students available</p>
+                        ) : (
+                          students.filter(s => s.isActive).map((student) => (
+                            <label key={student._id} className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={classFormData.studentIds?.includes(student._id)}
+                                onChange={() => handleStudentSelectForClass(student._id)}
+                              />
+                              <span>{student.name} {student.grade && `(${student.grade})`}</span>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowCreateClassModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    Create Class
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

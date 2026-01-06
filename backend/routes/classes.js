@@ -9,11 +9,12 @@ const router = express.Router();
 
 // @route   POST /api/classes
 // @desc    Create a new class
-// @access  Private (Teacher)
-router.post('/', protect, authorize('teacher'), [
+// @access  Private (Teacher, Admin)
+router.post('/', protect, authorize('teacher', 'admin'), [
   body('title').trim().notEmpty().withMessage('Title is required'),
   body('scheduledTime').isISO8601().withMessage('Valid scheduled time is required'),
-  body('duration').optional().isInt({ min: 15 }).withMessage('Duration must be at least 15 minutes')
+  body('duration').optional().isInt({ min: 15 }).withMessage('Duration must be at least 15 minutes'),
+  body('teacherId').optional().isMongoId().withMessage('Valid teacher ID is required when creating as admin')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -21,7 +22,23 @@ router.post('/', protect, authorize('teacher'), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, scheduledTime, duration, studentIds, groupId } = req.body;
+    const { title, description, scheduledTime, duration, studentIds, groupId, teacherId } = req.body;
+
+    // Determine teacher: if admin, require teacherId; if teacher, use req.user._id
+    let teacherUserId;
+    if (req.user.role === 'admin') {
+      if (!teacherId) {
+        return res.status(400).json({ message: 'Teacher ID is required when creating class as admin' });
+      }
+      // Verify teacher exists and is actually a teacher
+      const teacher = await User.findOne({ _id: teacherId, role: 'teacher' });
+      if (!teacher) {
+        return res.status(400).json({ message: 'Invalid teacher ID or user is not a teacher' });
+      }
+      teacherUserId = teacherId;
+    } else {
+      teacherUserId = req.user._id;
+    }
 
     let finalStudentIds = [];
     let groupRef = null;
@@ -70,7 +87,7 @@ router.post('/', protect, authorize('teacher'), [
     const newClass = await Class.create({
       title,
       description,
-      teacher: req.user._id,
+      teacher: teacherUserId,
       students: finalStudentIds,
       group: groupRef,
       scheduledTime: new Date(scheduledTime),
