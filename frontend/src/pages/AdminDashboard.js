@@ -609,6 +609,17 @@ const AdminDashboard = () => {
     navigate(`/classroom/${classId}`);
   };
 
+  const handleDeleteClass = async (classId) => {
+    if (window.confirm('Are you sure you want to delete this class? This action cannot be undone.')) {
+      try {
+        await classService.deleteClass(classId);
+        loadData();
+      } catch (error) {
+        alert(error.response?.data?.message || 'Failed to delete class');
+      }
+    }
+  };
+
   const handleClassFormChange = (e) => {
     const { name, value } = e.target;
     setClassFormData({ ...classFormData, [name]: value });
@@ -1130,6 +1141,13 @@ const AdminDashboard = () => {
                               onClick={() => handleJoinClass(classItem._id)}
                             >
                               <FiVideo /> Join Class
+                            </button>
+                            <button
+                              className="btn btn-danger"
+                              onClick={() => handleDeleteClass(classItem._id)}
+                              title="Delete Class"
+                            >
+                              <FiTrash2 /> Delete
                             </button>
                           </div>
                         </div>
