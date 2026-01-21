@@ -7,7 +7,7 @@ import { groupService } from '../services/groupService';
 import { 
   FiUsers, FiBook, FiCalendar, FiPlus, FiVideo, FiMessageCircle,
   FiSearch, FiFilter, FiDownload, FiUpload, FiX, FiCheck, FiAlertCircle,
-  FiUserCheck, FiBookOpen, FiEdit2, FiTrash2, FiEye
+  FiUserCheck, FiBookOpen, FiEdit2, FiTrash2, FiEye, FiFileText, FiGrid, FiUser
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -95,6 +95,9 @@ const AdminDashboard = () => {
     teacherId: ''
   });
   const [classSelectionMode, setClassSelectionMode] = useState('students'); // 'students' or 'group'
+  const [classModalTab, setClassModalTab] = useState('details'); // 'details', 'teacher', 'students'
+  const [classTeacherSearch, setClassTeacherSearch] = useState('');
+  const [classStudentSearch, setClassStudentSearch] = useState('');
   
   // View/Edit user states
   const [showUserModal, setShowUserModal] = useState(false);
@@ -1067,6 +1070,9 @@ const AdminDashboard = () => {
                           teacherId: ''
                         });
                         setClassSelectionMode('students');
+                        setClassModalTab('details');
+                        setClassTeacherSearch('');
+                        setClassStudentSearch('');
                         setShowCreateClassModal(true);
                       }}
                     >
@@ -2128,155 +2134,554 @@ const AdminDashboard = () => {
                 <h2>Create New Class</h2>
                 <button className="modal-close" onClick={() => setShowCreateClassModal(false)}>×</button>
               </div>
+              
+              {/* Modal Tabs */}
+              <div className="modal-tabs" style={{ 
+                display: 'flex', 
+                borderBottom: '2px solid var(--gray-200)',
+                padding: '0 24px',
+                gap: '0'
+              }}>
+                <button
+                  type="button"
+                  className={`modal-tab ${classModalTab === 'details' ? 'active' : ''}`}
+                  onClick={() => setClassModalTab('details')}
+                  style={{
+                    padding: '12px 20px',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: classModalTab === 'details' ? 'var(--primary-color)' : 'var(--gray-500)',
+                    borderBottom: classModalTab === 'details' ? '2px solid var(--primary-color)' : '2px solid transparent',
+                    marginBottom: '-2px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <FiFileText style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                  Class Details
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab ${classModalTab === 'teacher' ? 'active' : ''}`}
+                  onClick={() => setClassModalTab('teacher')}
+                  style={{
+                    padding: '12px 20px',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: classModalTab === 'teacher' ? 'var(--primary-color)' : 'var(--gray-500)',
+                    borderBottom: classModalTab === 'teacher' ? '2px solid var(--primary-color)' : '2px solid transparent',
+                    marginBottom: '-2px',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <FiUser style={{ verticalAlign: 'middle' }} />
+                  Teacher
+                  {classFormData.teacherId && (
+                    <span style={{
+                      background: 'var(--success-color)',
+                      color: 'white',
+                      borderRadius: '50%',
+                      width: '18px',
+                      height: '18px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '11px'
+                    }}>✓</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className={`modal-tab ${classModalTab === 'students' ? 'active' : ''}`}
+                  onClick={() => setClassModalTab('students')}
+                  style={{
+                    padding: '12px 20px',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: classModalTab === 'students' ? 'var(--primary-color)' : 'var(--gray-500)',
+                    borderBottom: classModalTab === 'students' ? '2px solid var(--primary-color)' : '2px solid transparent',
+                    marginBottom: '-2px',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <FiUsers style={{ verticalAlign: 'middle' }} />
+                  Students
+                  {(classFormData.studentIds?.length > 0 || classFormData.groupId) && (
+                    <span style={{
+                      background: 'var(--primary-color)',
+                      color: 'white',
+                      borderRadius: '10px',
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: '600'
+                    }}>
+                      {classFormData.groupId ? '1 group' : classFormData.studentIds.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
               <form onSubmit={handleCreateClass}>
-                <div className="modal-body modal-body-scroll">
-                  <div className="form-group">
-                    <label className="form-label">Teacher *</label>
-                    <select
-                      name="teacherId"
-                      className="form-input"
-                      value={classFormData.teacherId}
-                      onChange={handleClassFormChange}
-                      required
-                    >
-                      <option value="">Select a teacher</option>
-                      {teachers.filter(t => t.isActive).map((teacher) => (
-                        <option key={teacher._id} value={teacher._id}>
-                          {teacher.name} ({teacher.email})
-                        </option>
-                      ))}
-                    </select>
-                    {teachers.filter(t => t.isActive).length === 0 && (
-                      <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--gray-500)' }}>
-                        No active teachers available. Please create a teacher first.
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Class Title *</label>
-                    <input
-                      type="text"
-                      name="title"
-                      className="form-input"
-                      placeholder="Enter class title"
-                      value={classFormData.title}
-                      onChange={handleClassFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-textarea"
-                      placeholder="Enter class description (optional)"
-                      value={classFormData.description}
-                      onChange={handleClassFormChange}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Scheduled Time *</label>
-                    <input
-                      type="datetime-local"
-                      name="scheduledTime"
-                      className="form-input"
-                      value={classFormData.scheduledTime}
-                      onChange={handleClassFormChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Duration (minutes) *</label>
-                    <input
-                      type="number"
-                      name="duration"
-                      className="form-input"
-                      placeholder="60"
-                      value={classFormData.duration}
-                      onChange={handleClassFormChange}
-                      min="15"
-                      required
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Select Participants *</label>
-                    <div style={{ marginBottom: '12px', display: 'flex', gap: '12px' }}>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${classSelectionMode === 'students' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => {
-                          setClassSelectionMode('students');
-                          setClassFormData({ ...classFormData, groupId: '' });
-                        }}
-                      >
-                        Individual Students
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn btn-sm ${classSelectionMode === 'group' ? 'btn-primary' : 'btn-secondary'}`}
-                        onClick={() => {
-                          setClassSelectionMode('group');
-                          setClassFormData({ ...classFormData, studentIds: [] });
-                        }}
-                      >
-                        Select Group
-                      </button>
-                    </div>
-
-                    {classSelectionMode === 'group' ? (
+                <div className="modal-body modal-body-scroll" style={{ minHeight: '400px' }}>
+                  
+                  {/* Class Details Tab */}
+                  {classModalTab === 'details' && (
+                    <div className="tab-content">
                       <div className="form-group">
-                        <select
+                        <label className="form-label">Class Title *</label>
+                        <input
+                          type="text"
+                          name="title"
                           className="form-input"
-                          value={classFormData.groupId}
-                          onChange={(e) => setClassFormData({ ...classFormData, groupId: e.target.value })}
+                          placeholder="Enter class title"
+                          value={classFormData.title}
+                          onChange={handleClassFormChange}
                           required
-                        >
-                          <option value="">Select a group</option>
-                          {groups.map((group) => (
-                            <option key={group._id} value={group._id}>
-                              {group.name} ({group.members?.filter(m => m.role === 'student').length || 0} students)
-                            </option>
-                          ))}
-                        </select>
-                        {groups.length === 0 && (
-                          <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--gray-500)' }}>
-                            No groups available. Create a group first.
-                          </p>
-                        )}
+                        />
                       </div>
-                    ) : (
-                      <div className="student-select" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                        {students.filter(s => s.isActive).length === 0 ? (
-                          <p style={{ padding: '16px', color: 'var(--gray-500)', textAlign: 'center' }}>No active students available</p>
+
+                      <div className="form-group">
+                        <label className="form-label">Description</label>
+                        <textarea
+                          name="description"
+                          className="form-textarea"
+                          placeholder="Enter class description (optional)"
+                          value={classFormData.description}
+                          onChange={handleClassFormChange}
+                          rows={3}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="form-group">
+                          <label className="form-label">Scheduled Time *</label>
+                          <input
+                            type="datetime-local"
+                            name="scheduledTime"
+                            className="form-input"
+                            value={classFormData.scheduledTime}
+                            onChange={handleClassFormChange}
+                            required
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label className="form-label">Duration (minutes) *</label>
+                          <input
+                            type="number"
+                            name="duration"
+                            className="form-input"
+                            placeholder="60"
+                            value={classFormData.duration}
+                            onChange={handleClassFormChange}
+                            min="15"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        marginTop: '24px', 
+                        padding: '16px', 
+                        background: 'var(--gray-50)', 
+                        borderRadius: '8px',
+                        border: '1px solid var(--gray-200)'
+                      }}>
+                        <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', color: 'var(--gray-700)' }}>Selection Summary</h4>
+                        <div style={{ display: 'flex', gap: '24px', fontSize: '13px' }}>
+                          <div>
+                            <span style={{ color: 'var(--gray-500)' }}>Teacher: </span>
+                            <span style={{ fontWeight: '500', color: classFormData.teacherId ? 'var(--success-color)' : 'var(--danger-color)' }}>
+                              {classFormData.teacherId 
+                                ? teachers.find(t => t._id === classFormData.teacherId)?.name || 'Selected'
+                                : 'Not selected'}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: 'var(--gray-500)' }}>Students: </span>
+                            <span style={{ fontWeight: '500', color: (classFormData.studentIds?.length > 0 || classFormData.groupId) ? 'var(--success-color)' : 'var(--danger-color)' }}>
+                              {classFormData.groupId 
+                                ? `Group: ${groups.find(g => g._id === classFormData.groupId)?.name || 'Selected'}`
+                                : classFormData.studentIds?.length > 0 
+                                  ? `${classFormData.studentIds.length} student(s)`
+                                  : 'Not selected'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Teacher Selection Tab */}
+                  {classModalTab === 'teacher' && (
+                    <div className="tab-content">
+                      <div className="form-group">
+                        <div style={{ position: 'relative' }}>
+                          <FiSearch style={{ 
+                            position: 'absolute', 
+                            left: '12px', 
+                            top: '50%', 
+                            transform: 'translateY(-50%)',
+                            color: 'var(--gray-400)'
+                          }} />
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Search teachers by name or email..."
+                            value={classTeacherSearch}
+                            onChange={(e) => setClassTeacherSearch(e.target.value)}
+                            style={{ paddingLeft: '38px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        maxHeight: '320px', 
+                        overflowY: 'auto',
+                        border: '1px solid var(--gray-200)',
+                        borderRadius: '8px'
+                      }}>
+                        {teachers.filter(t => t.isActive).length === 0 ? (
+                          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)' }}>
+                            <FiUser style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.5 }} />
+                            <p>No active teachers available</p>
+                            <p style={{ fontSize: '12px' }}>Please create a teacher first.</p>
+                          </div>
                         ) : (
-                          students.filter(s => s.isActive).map((student) => (
-                            <label key={student._id} className="checkbox-label">
-                              <input
-                                type="checkbox"
-                                checked={classFormData.studentIds?.includes(student._id)}
-                                onChange={() => handleStudentSelectForClass(student._id)}
-                              />
-                              <span>{student.name} {student.grade && `(${student.grade})`}</span>
-                            </label>
-                          ))
+                          teachers
+                            .filter(t => t.isActive)
+                            .filter(t => 
+                              t.name.toLowerCase().includes(classTeacherSearch.toLowerCase()) ||
+                              t.email.toLowerCase().includes(classTeacherSearch.toLowerCase())
+                            )
+                            .map((teacher) => (
+                              <label 
+                                key={teacher._id} 
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '12px 16px',
+                                  cursor: 'pointer',
+                                  borderBottom: '1px solid var(--gray-100)',
+                                  background: classFormData.teacherId === teacher._id ? 'var(--primary-light)' : 'transparent',
+                                  transition: 'background 0.2s'
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  name="teacherSelection"
+                                  checked={classFormData.teacherId === teacher._id}
+                                  onChange={() => setClassFormData({ ...classFormData, teacherId: teacher._id })}
+                                  style={{ marginRight: '12px' }}
+                                />
+                                <div style={{ 
+                                  width: '40px', 
+                                  height: '40px', 
+                                  borderRadius: '50%', 
+                                  background: 'var(--primary-color)',
+                                  color: 'white',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontWeight: '600',
+                                  marginRight: '12px',
+                                  fontSize: '14px'
+                                }}>
+                                  {teacher.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: '500', color: 'var(--gray-800)' }}>{teacher.name}</div>
+                                  <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{teacher.email}</div>
+                                  {teacher.specialization && (
+                                    <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '2px' }}>
+                                      {teacher.specialization}
+                                    </div>
+                                  )}
+                                </div>
+                                {classFormData.teacherId === teacher._id && (
+                                  <FiCheck style={{ color: 'var(--success-color)', fontSize: '20px' }} />
+                                )}
+                              </label>
+                            ))
+                        )}
+                        {teachers.filter(t => t.isActive).length > 0 && 
+                         teachers.filter(t => t.isActive).filter(t => 
+                           t.name.toLowerCase().includes(classTeacherSearch.toLowerCase()) ||
+                           t.email.toLowerCase().includes(classTeacherSearch.toLowerCase())
+                         ).length === 0 && (
+                          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)' }}>
+                            <p>No teachers match your search</p>
+                          </div>
                         )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Students Selection Tab */}
+                  {classModalTab === 'students' && (
+                    <div className="tab-content">
+                      <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${classSelectionMode === 'students' ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={() => {
+                            setClassSelectionMode('students');
+                            setClassFormData({ ...classFormData, groupId: '' });
+                          }}
+                        >
+                          <FiUsers style={{ marginRight: '4px' }} />
+                          Individual Students
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn btn-sm ${classSelectionMode === 'group' ? 'btn-primary' : 'btn-secondary'}`}
+                          onClick={() => {
+                            setClassSelectionMode('group');
+                            setClassFormData({ ...classFormData, studentIds: [] });
+                          }}
+                        >
+                          <FiGrid style={{ marginRight: '4px' }} />
+                          Select Group
+                        </button>
+                      </div>
+
+                      {classSelectionMode === 'group' ? (
+                        <div>
+                          <div style={{ 
+                            maxHeight: '320px', 
+                            overflowY: 'auto',
+                            border: '1px solid var(--gray-200)',
+                            borderRadius: '8px'
+                          }}>
+                            {groups.length === 0 ? (
+                              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)' }}>
+                                <FiGrid style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.5 }} />
+                                <p>No groups available</p>
+                                <p style={{ fontSize: '12px' }}>Create a group first from the Groups tab.</p>
+                              </div>
+                            ) : (
+                              groups.map((group) => (
+                                <label 
+                                  key={group._id} 
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    padding: '12px 16px',
+                                    cursor: 'pointer',
+                                    borderBottom: '1px solid var(--gray-100)',
+                                    background: classFormData.groupId === group._id ? 'var(--primary-light)' : 'transparent',
+                                    transition: 'background 0.2s'
+                                  }}
+                                >
+                                  <input
+                                    type="radio"
+                                    name="groupSelection"
+                                    checked={classFormData.groupId === group._id}
+                                    onChange={() => setClassFormData({ ...classFormData, groupId: group._id })}
+                                    style={{ marginRight: '12px' }}
+                                  />
+                                  <div style={{ 
+                                    width: '40px', 
+                                    height: '40px', 
+                                    borderRadius: '8px', 
+                                    background: 'var(--secondary-color)',
+                                    color: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginRight: '12px'
+                                  }}>
+                                    <FiGrid />
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontWeight: '500', color: 'var(--gray-800)' }}>{group.name}</div>
+                                    <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>
+                                      {group.members?.filter(m => m.role === 'student').length || 0} students
+                                    </div>
+                                  </div>
+                                  {classFormData.groupId === group._id && (
+                                    <FiCheck style={{ color: 'var(--success-color)', fontSize: '20px' }} />
+                                  )}
+                                </label>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="form-group">
+                            <div style={{ position: 'relative' }}>
+                              <FiSearch style={{ 
+                                position: 'absolute', 
+                                left: '12px', 
+                                top: '50%', 
+                                transform: 'translateY(-50%)',
+                                color: 'var(--gray-400)'
+                              }} />
+                              <input
+                                type="text"
+                                className="form-input"
+                                placeholder="Search students by name or grade..."
+                                value={classStudentSearch}
+                                onChange={(e) => setClassStudentSearch(e.target.value)}
+                                style={{ paddingLeft: '38px' }}
+                              />
+                            </div>
+                          </div>
+
+                          {classFormData.studentIds?.length > 0 && (
+                            <div style={{ 
+                              marginBottom: '12px', 
+                              padding: '8px 12px', 
+                              background: 'var(--primary-light)', 
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}>
+                              <span><strong>{classFormData.studentIds.length}</strong> student(s) selected</span>
+                              <button
+                                type="button"
+                                onClick={() => setClassFormData({ ...classFormData, studentIds: [] })}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--danger-color)',
+                                  cursor: 'pointer',
+                                  fontSize: '12px'
+                                }}
+                              >
+                                Clear all
+                              </button>
+                            </div>
+                          )}
+
+                          <div style={{ 
+                            maxHeight: '280px', 
+                            overflowY: 'auto',
+                            border: '1px solid var(--gray-200)',
+                            borderRadius: '8px'
+                          }}>
+                            {students.filter(s => s.isActive).length === 0 ? (
+                              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)' }}>
+                                <FiUsers style={{ fontSize: '32px', marginBottom: '8px', opacity: 0.5 }} />
+                                <p>No active students available</p>
+                              </div>
+                            ) : (
+                              students
+                                .filter(s => s.isActive)
+                                .filter(s => 
+                                  s.name.toLowerCase().includes(classStudentSearch.toLowerCase()) ||
+                                  (s.grade && s.grade.toLowerCase().includes(classStudentSearch.toLowerCase()))
+                                )
+                                .map((student) => (
+                                  <label 
+                                    key={student._id} 
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      padding: '10px 16px',
+                                      cursor: 'pointer',
+                                      borderBottom: '1px solid var(--gray-100)',
+                                      background: classFormData.studentIds?.includes(student._id) ? 'var(--primary-light)' : 'transparent',
+                                      transition: 'background 0.2s'
+                                    }}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={classFormData.studentIds?.includes(student._id)}
+                                      onChange={() => handleStudentSelectForClass(student._id)}
+                                      style={{ marginRight: '12px' }}
+                                    />
+                                    <div style={{ 
+                                      width: '36px', 
+                                      height: '36px', 
+                                      borderRadius: '50%', 
+                                      background: 'var(--info-color)',
+                                      color: 'white',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontWeight: '600',
+                                      marginRight: '12px',
+                                      fontSize: '13px'
+                                    }}>
+                                      {student.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontWeight: '500', color: 'var(--gray-800)', fontSize: '14px' }}>{student.name}</div>
+                                      {student.grade && (
+                                        <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{student.grade}</div>
+                                      )}
+                                    </div>
+                                    {classFormData.studentIds?.includes(student._id) && (
+                                      <FiCheck style={{ color: 'var(--success-color)', fontSize: '18px' }} />
+                                    )}
+                                  </label>
+                                ))
+                            )}
+                            {students.filter(s => s.isActive).length > 0 && 
+                             students.filter(s => s.isActive).filter(s => 
+                               s.name.toLowerCase().includes(classStudentSearch.toLowerCase()) ||
+                               (s.grade && s.grade.toLowerCase().includes(classStudentSearch.toLowerCase()))
+                             ).length === 0 && (
+                              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--gray-500)' }}>
+                                <p>No students match your search</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                <div className="modal-actions">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowCreateClassModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary">
-                    Create Class
-                  </button>
+                <div className="modal-actions" style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderTop: '1px solid var(--gray-200)',
+                  padding: '16px 24px'
+                }}>
+                  <div style={{ fontSize: '13px', color: 'var(--gray-500)' }}>
+                    {classModalTab !== 'students' && (
+                      <button 
+                        type="button" 
+                        className="btn btn-link"
+                        onClick={() => setClassModalTab(classModalTab === 'details' ? 'teacher' : 'students')}
+                        style={{ padding: 0 }}
+                      >
+                        Next: {classModalTab === 'details' ? 'Select Teacher' : 'Select Students'} →
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setShowCreateClassModal(false)}>
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit" 
+                      className="btn btn-primary"
+                      disabled={!classFormData.title || !classFormData.scheduledTime || !classFormData.teacherId || (!classFormData.groupId && classFormData.studentIds?.length === 0)}
+                    >
+                      Create Class
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
